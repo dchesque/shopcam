@@ -10,22 +10,66 @@ import json
 
 class SupabaseManager:
     def __init__(self, url: str, key: str):
+        """
+        Inicializa o gerenciador do Supabase.
+
+        Args:
+            url: URL do projeto Supabase
+            key: Service key do Supabase (NUNCA expor publicamente)
+
+        Raises:
+            ValueError: Se URL ou key forem inválidos
+        """
+        # Validar que URL e key não estão vazios
+        if not url or len(url) < 10:
+            raise ValueError("🔒 ERRO: SUPABASE_URL inválida ou não configurada")
+
+        if not key or len(key) < 20:
+            raise ValueError("🔒 ERRO: SUPABASE_SERVICE_KEY inválida ou não configurada")
+
         self.url = url
         self.key = key
         self.client: Optional[Client] = None
-        
+
     async def initialize(self):
-        """Inicializar conexão com Supabase"""
+        """
+        Inicializar conexão com Supabase com validações de segurança.
+
+        Returns:
+            bool: True se conexão bem-sucedida, False caso contrário
+        """
         try:
-            # CORREÇÃO: Remover qualquer parâmetro proxy
+            # Validações de segurança adicionais
+            from core.config import settings
+
+            # Log seguro (não expõe a chave completa)
+            logger.info(f"🔐 Inicializando Supabase: {self.url}")
+            logger.debug(f"🔑 Service Key configurada (últimos 8 chars): ...{self.key[-8:]}")
+
+            # Validação de ambiente de produção
+            if settings.is_production:
+                # Em produção, não permitir URLs localhost
+                if "localhost" in self.url or "127.0.0.1" in self.url:
+                    raise ValueError(
+                        "🔒 ERRO DE SEGURANÇA: URL do Supabase localhost não permitida em produção. "
+                        "Configure SUPABASE_URL com a URL real do projeto."
+                    )
+                logger.info("✅ Validação de ambiente de produção: OK")
+
+            # Criar cliente Supabase
             self.client = create_client(self.url, self.key)
-            
+
             # Testar conexão básica
             logger.info("✅ Conexão com Supabase estabelecida")
             return True
-            
+
+        except ValueError as e:
+            # Erros de validação são críticos - não permitir continuar
+            logger.critical(f"❌ Erro de validação na inicialização do Supabase: {e}")
+            raise
+
         except Exception as e:
-            logger.error(f"Erro ao conectar Supabase: {e}")
+            logger.error(f"❌ Erro ao conectar Supabase: {e}")
             # Permitir que o sistema funcione sem Supabase se necessário
             logger.warning("⚠️ Sistema funcionando em modo offline (sem banco)")
             return False

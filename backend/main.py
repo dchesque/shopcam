@@ -141,13 +141,33 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configurar CORS
+# ============================================================================
+# 🔒 CONFIGURAR CORS DE FORMA RESTRITIVA E SEGURA
+# ============================================================================
+
+# Obter origens permitidas baseado no ambiente
+allowed_origins = settings.get_allowed_origins()
+
+# Log de segurança
+logger.info(f"🔒 CORS configurado para ambiente: {settings.ENVIRONMENT}")
+logger.info(f"🌐 Origens permitidas: {allowed_origins}")
+
+# Validação crítica: NUNCA permitir wildcard em produção
+if settings.is_production and "*" in str(allowed_origins):
+    logger.critical("⚠️ ALERTA DE SEGURANÇA: CORS com wildcard não permitido em produção!")
+    raise ValueError(
+        "🔒 ERRO DE SEGURANÇA: CORS wildcard (*) não é permitido em ambiente de produção. "
+        "Configure PRODUCTION_DOMAIN corretamente."
+    )
+
+# Configurar CORS com restrições apropriadas
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=allowed_origins,  # LISTA RESTRITA baseada no ambiente
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Apenas métodos necessários
+    allow_headers=["Content-Type", "Authorization", "Accept"],  # Apenas headers necessários
+    max_age=600,  # Cache de preflight por 10 minutos
 )
 
 # Servir arquivos estáticos (snapshots)
