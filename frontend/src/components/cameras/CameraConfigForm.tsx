@@ -56,6 +56,7 @@ const cameraSchema = z.object({
     height: z.number().min(1).max(100),
   }),
   is_active: z.boolean(),
+  notes: z.string().optional(),
 });
 
 type CameraFormData = z.infer<typeof cameraSchema>;
@@ -137,7 +138,7 @@ export function CameraConfigForm({
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/cameras/test-connection`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(currentData)
       })
 
       setConnectionStatus(response.ok ? 'success' : 'error');

@@ -1,89 +1,33 @@
-import { 
-  LayoutDashboard, 
-  Camera, 
-  BarChart3, 
-  Users, 
-  FileText, 
-  Settings,
-  TrendingUp,
-  Eye,
-  UserPlus,
-  Calendar,
-  PieChart,
-  Activity,
-  Zap,
-  Monitor,
-  Cog,
-  Target,
-  GitCompare,
-  Shield,
-  Key,
-  Store,
-  Globe,
-  Bell
+import {
+  LayoutDashboard,
+  Video,
+  Users,
 } from 'lucide-react'
 
+// ============================================
+// MVP SIMPLIFICADO - 3 PÁGINAS APENAS
+// ============================================
 export const MENU_ITEMS = [
   {
     id: 'dashboard',
     label: 'Dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
+    description: 'Visão geral do sistema'
   },
   {
     id: 'cameras',
-    label: 'Câmeras',
+    label: 'Câmera',
     href: '/cameras',
-    icon: Camera,
-    badge: '4',
-    children: [
-      { id: 'monitor', label: 'Monitoramento', href: '/cameras', icon: Monitor },
-      { id: 'settings', label: 'Configurações', href: '/cameras/settings', icon: Cog },
-    ]
-  },
-  {
-    id: 'analytics',
-    label: 'Analytics',
-    href: '/analytics',
-    icon: BarChart3,
-    children: [
-      { id: 'realtime', label: 'Tempo Real', href: '/analytics/realtime', icon: Activity },
-      { id: 'behavioral', label: 'Comportamental', href: '/analytics/behavioral', icon: TrendingUp },
-      { id: 'comparisons', label: 'Comparações', href: '/analytics/comparisons', icon: GitCompare, badge: 'NEW' },
-      { id: 'segmentation', label: 'Segmentação', href: '/analytics/segmentation', icon: PieChart },
-      { id: 'predictions', label: 'Predições', href: '/analytics/predictions', icon: Zap },
-    ]
+    icon: Video,
+    description: 'Visualização ao vivo'
   },
   {
     id: 'employees',
     label: 'Funcionários',
     href: '/employees',
     icon: Users,
-    children: [
-      { id: 'list', label: 'Lista', href: '/employees', icon: Users },
-      { id: 'register', label: 'Cadastro', href: '/employees/register', icon: UserPlus },
-      { id: 'attendance', label: 'Presença', href: '/employees/attendance', icon: Calendar },
-    ]
-  },
-  {
-    id: 'reports',
-    label: 'Relatórios',
-    href: '/reports',
-    icon: FileText,
-  },
-  {
-    id: 'settings',
-    label: 'Configurações',
-    href: '/settings',
-    icon: Settings,
-    children: [
-      { id: 'privacy', label: 'Privacidade', href: '/settings/privacy', icon: Shield },
-      { id: 'users', label: 'Usuários', href: '/settings/users', icon: Users },
-      { id: 'security', label: 'Segurança', href: '/settings/security', icon: Key },
-      { id: 'store', label: 'Loja', href: '/settings/store', icon: Store },
-      { id: 'integrations', label: 'Integrações', href: '/settings/integrations', icon: Globe },
-      { id: 'notifications', label: 'Notificações', href: '/settings/notifications', icon: Bell },
-    ]
+    description: 'Gerenciar equipe'
   },
 ]
 
@@ -109,9 +53,20 @@ export const COLORS = {
   }
 }
 
+// ============================================
+// API ENDPOINTS MVP
+// ============================================
 export const API_ENDPOINTS = {
-  CAMERAS: '/api/cameras',
-  EMPLOYEES: '/api/employees',
-  ANALYTICS: '/api/analytics',
-  REPORTS: '/api/reports',
+  // Camera endpoints
+  CAMERA_STREAM: '/api/camera/stream',     // MJPEG stream
+  CAMERA_STATS: '/api/camera/stats',       // Estatísticas da câmera
+
+  // Analytics endpoints
+  METRICS: '/api/analytics/metrics',       // Métricas básicas
+  HEALTH: '/api/analytics/health',         // Status do sistema
+
+  // Employee endpoints
+  EMPLOYEES_LIST: '/api/employees/list',   // Listar funcionários
+  EMPLOYEES_REGISTER: '/api/employees/register', // Cadastrar
+  EMPLOYEES_DELETE: '/api/employees',      // Deletar (usar com /{id})
 } as const

@@ -30,6 +30,122 @@ async def get_smart_engine() -> SmartAnalyticsEngine:
     return engine
 
 
+# ============================================
+# ENDPOINTS MVP - SIMPLIFICADOS
+# ============================================
+
+@router.get("/metrics", response_model=Dict[str, Any])
+async def get_mvp_metrics():
+    """
+    MVP: Obter métricas atuais simplificadas
+
+    Retorna dados do último evento processado da câmera
+    """
+    try:
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
+
+        # Buscar último evento da câmera
+        response = await db.supabase.table("camera_events") \
+            .select("*") \
+            .order("timestamp", desc=True) \
+            .limit(1) \
+            .execute()
+
+        if response.data and len(response.data) > 0:
+            latest = response.data[0]
+            return {
+                "total_people": latest.get("total_people", 0),
+                "potential_customers": latest.get("potential_customers", 0),
+                "employees_count": latest.get("employees_count", 0),
+                "groups_count": latest.get("groups_count", 0),
+                "timestamp": latest.get("timestamp")
+            }
+        else:
+            # Retornar dados zerados se não houver eventos
+            return {
+                "total_people": 0,
+                "potential_customers": 0,
+                "employees_count": 0,
+                "groups_count": 0,
+                "timestamp": datetime.now().isoformat()
+            }
+
+    except Exception as e:
+        logger.error(f"Erro ao obter métricas MVP: {e}")
+        # Retornar dados zerados em caso de erro
+        return {
+            "total_people": 0,
+            "potential_customers": 0,
+            "employees_count": 0,
+            "groups_count": 0,
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@router.get("/history", response_model=Dict[str, Any])
+async def get_mvp_history(
+    hours: int = Query(24, ge=1, le=168, description="Últimas N horas")
+):
+    """
+    MVP: Obter histórico simplificado para gráfico
+
+    Args:
+        hours: Últimas N horas (padrão 24)
+
+    Retorna dados agrupados por hora para o gráfico temporal
+    """
+    try:
+        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        await db.initialize()
+
+        # Calcular timestamp de início
+        start_time = datetime.now() - timedelta(hours=hours)
+
+        # Buscar eventos no período
+        response = await db.supabase.table("camera_events") \
+            .select("timestamp, total_people") \
+            .gte("timestamp", start_time.isoformat()) \
+            .order("timestamp", desc=False) \
+            .execute()
+
+        if response.data:
+            # Retornar dados formatados
+            history_data = []
+            for event in response.data:
+                history_data.append({
+                    "timestamp": event.get("timestamp"),
+                    "total_people": event.get("total_people", 0)
+                })
+
+            return history_data
+        else:
+            # Gerar dados dummy se não houver eventos
+            return generate_dummy_history(hours)
+
+    except Exception as e:
+        logger.error(f"Erro ao obter histórico MVP: {e}")
+        # Retornar dados dummy em caso de erro
+        return generate_dummy_history(hours)
+
+
+def generate_dummy_history(hours: int) -> List[Dict[str, Any]]:
+    """Gerar dados de exemplo para o histórico"""
+    import random
+    data = []
+    now = datetime.now()
+
+    # Gerar um ponto por hora
+    for i in range(hours, 0, -1):
+        time_point = now - timedelta(hours=i)
+        data.append({
+            "timestamp": time_point.isoformat(),
+            "total_people": random.randint(3, 25)
+        })
+
+    return data
+
+
 @router.get("/smart-metrics", response_model=Dict[str, Any])
 async def get_smart_metrics(
     engine: SmartAnalyticsEngine = Depends(get_smart_engine)

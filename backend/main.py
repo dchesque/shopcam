@@ -36,6 +36,9 @@ from utils.helpers import *
 from core.ai.smart_analytics_engine import SmartAnalyticsEngine, SmartMetrics
 from core.ai.privacy_config import privacy_manager
 
+# Importar RTSP Processor MVP
+from core.rtsp_processor import RTSPFrameProcessor
+
 # Load environment variables
 load_dotenv()
 
@@ -45,14 +48,15 @@ detector = None
 tracker = None
 websocket_manager = WebSocketManager()
 smart_engine = None
+rtsp_processor = None  # RTSP processor para MVP
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle management para inicializar/limpar recursos"""
-    global supabase_manager, detector, tracker, smart_engine
-    
-    logger.info("🚀 Iniciando Shop Flow Backend com Smart Analytics...")
-    
+    global supabase_manager, detector, tracker, smart_engine, rtsp_processor
+
+    logger.info("🚀 Iniciando Shop Flow Backend MVP (RTSP direto)...")
+
     try:
         # Inicializar Supabase
         supabase_manager = SupabaseManager(
@@ -61,49 +65,72 @@ async def lifespan(app: FastAPI):
         )
         await supabase_manager.initialize()
         logger.success("✅ Supabase conectado")
-        
+
         # Inicializar detector YOLO
         detector = YOLOPersonDetector(
             model_path=settings.YOLO_MODEL,
             confidence=settings.YOLO_CONFIDENCE
         )
         await detector.load_model()
-        logger.success("✅ YOLOv8 carregado")
-        
-        # Inicializar tracker
+        logger.success("✅ YOLO11 carregado")
+
+        # Inicializar tracker (mantido para compatibilidade, mas não usado no MVP)
         tracker = PersonTracker(
             max_disappeared=settings.TRACKING_MAX_DISAPPEARED,
             max_distance=settings.TRACKING_MAX_DISTANCE
         )
         logger.success("✅ Tracker inicializado")
-        
-        # Inicializar Smart Analytics Engine
-        smart_engine = SmartAnalyticsEngine(enable_face_recognition=True)
+
+        # Inicializar Smart Analytics Engine (opcional, para face recognition)
+        smart_engine = SmartAnalyticsEngine(enable_face_recognition=settings.FACE_RECOGNITION_ENABLED)
         await smart_engine.initialize()
-        
+
         # Definir no estado global
         from core.app_state import set_smart_engine
         set_smart_engine(smart_engine)
-        
-        logger.success("✅ Smart Analytics Engine inicializado e registrado globalmente")
-        
+
+        logger.success("✅ Smart Analytics Engine inicializado")
+
         # Criar diretórios necessários
         Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
         Path("logs").mkdir(parents=True, exist_ok=True)
         Path("face_embeddings").mkdir(parents=True, exist_ok=True)
-        
-        logger.success("🎯 Backend com IA iniciado com sucesso!")
-        
+
+        # ========== MVP: Inicializar RTSP Processor ==========
+        logger.info("🎥 Inicializando RTSP Processor...")
+        rtsp_processor = RTSPFrameProcessor(
+            rtsp_url=settings.CAMERA_RTSP_URL,
+            detector=detector,
+            database=supabase_manager,
+            target_fps=settings.CAMERA_FPS_PROCESS,
+            face_recognition_enabled=settings.FACE_RECOGNITION_ENABLED
+        )
+
+        await rtsp_processor.initialize()
+
+        # Iniciar processamento contínuo
+        await rtsp_processor.start()
+        logger.success("✅ RTSP Processor iniciado - processamento ao vivo ativo!")
+
+        logger.success("🎯 Backend MVP iniciado com sucesso! Câmera conectada via RTSP.")
+
     except Exception as e:
         logger.error(f"❌ Erro na inicialização: {e}")
         raise
-    
+
     yield
-    
+
     # Cleanup
     logger.info("🔄 Finalizando backend...")
+
+    # Parar RTSP processor
+    if rtsp_processor:
+        await rtsp_processor.stop()
+        logger.info("✅ RTSP Processor finalizado")
+
     if supabase_manager:
         await supabase_manager.close()
+
     logger.info("✅ Backend finalizado")
 
 # Criar app FastAPI
@@ -138,46 +165,78 @@ app.include_router(analytics_router)
 app.include_router(employees_router)
 
 # ============================================================================
-# ENDPOINTS DE BRIDGE (Recepção de frames da câmera)
+# MVP: MJPEG STREAM ENDPOINT (substituindo bridge)
 # ============================================================================
 
-@app.post("/api/bridge/frames")
-async def receive_frame(frame_data: FrameData, background_tasks: BackgroundTasks):
-    """Receber frame do bridge e processar com Smart Analytics"""
-    try:
-        # Decodificar frame
-        frame_bytes = base64.b64decode(frame_data.frame_data)
-        frame_array = decode_frame_from_bytes(frame_bytes)
-        
-        if frame_array is None:
-            raise HTTPException(status_code=400, detail="Frame inválido")
-        
-        # Processar frame com Smart Analytics em background
-        background_tasks.add_task(process_smart_frame, frame_array, frame_data.timestamp)
-        
-        return {"status": "received", "timestamp": frame_data.timestamp}
-        
-    except Exception as e:
-        logger.error(f"Erro ao receber frame: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+async def generate_mjpeg_stream():
+    """
+    Gerador de stream MJPEG para visualização da câmera ao vivo.
+    Retorna frames anotados com bounding boxes e estatísticas.
+    """
+    logger.info("Cliente conectado ao stream MJPEG")
 
-@app.post("/api/bridge/heartbeat")
-async def bridge_heartbeat(heartbeat: HeartbeatData):
-    """Receber heartbeat do bridge"""
     try:
-        # Salvar heartbeat no banco
-        await supabase_manager.log_system_event(
-            level="INFO",
-            message=f"Heartbeat do bridge {heartbeat.bridge_id}",
-            component="bridge",
-            metadata=heartbeat.model_dump()
-        )
-        
-        return {"status": "ok", "timestamp": datetime.now().isoformat()}
-        
+        while True:
+            if not rtsp_processor or not rtsp_processor.is_running:
+                # Se processor não está rodando, retornar frame placeholder
+                logger.warning("RTSP processor não disponível")
+                await asyncio.sleep(0.5)
+                continue
+
+            # Obter último frame processado
+            frame_jpeg = rtsp_processor.get_latest_frame()
+
+            if frame_jpeg is None:
+                # Sem frame disponível ainda
+                await asyncio.sleep(0.1)
+                continue
+
+            # Retornar frame no formato MJPEG
+            yield (
+                b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + frame_jpeg + b'\r\n'
+            )
+
+            # Controlar FPS do stream (10 FPS para web)
+            await asyncio.sleep(0.1)  # ~10 FPS
+
     except Exception as e:
-        logger.error(f"Erro no heartbeat: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Erro no stream MJPEG: {e}")
+    finally:
+        logger.info("Cliente desconectado do stream MJPEG")
+
+
+@app.get("/api/camera/stream")
+async def camera_stream():
+    """
+    Endpoint de stream MJPEG da câmera ao vivo.
+
+    Returns:
+        StreamingResponse: Stream de vídeo MJPEG com bounding boxes e métricas
+    """
+    return StreamingResponse(
+        generate_mjpeg_stream(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
+
+@app.get("/api/camera/stats")
+async def camera_stats():
+    """
+    Estatísticas da câmera e processamento.
+
+    Returns:
+        Estatísticas atuais (FPS, frames processados, saúde da câmera, etc)
+    """
+    if not rtsp_processor:
+        raise HTTPException(status_code=503, detail="RTSP processor não inicializado")
+
+    stats = rtsp_processor.get_stats()
+    return {
+        "status": "ok",
+        "camera_stats": stats,
+        "timestamp": datetime.now().isoformat()
+    }
 
 # ============================================================================
 # HEALTH CHECK ENDPOINT

@@ -1259,6 +1259,112 @@ class SupabaseManager:
             logger.error(f"Erro ao buscar dados de comparação de períodos: {e}")
             return {"current_period": {}, "comparison_period": {}, "variations": {}, "insights": [], "statistical_significance": {}}
 
+    # ========================================================================
+    # EMPLOYEES - Gerenciamento de Funcionários
+    # ========================================================================
+
+    async def get_all_employees(self) -> List[Dict[str, Any]]:
+        """Buscar todos os funcionários cadastrados"""
+        if not self.client:
+            return []
+
+        try:
+            result = self.client.table("employees")\
+                .select("*")\
+                .order("created_at", desc=False)\
+                .execute()
+
+            return result.data or []
+
+        except Exception as e:
+            logger.error(f"Erro ao buscar funcionários: {e}")
+            return []
+
+    async def get_employee_by_id(self, employee_id: str) -> Optional[Dict[str, Any]]:
+        """Buscar funcionário por ID"""
+        if not self.client:
+            return None
+
+        try:
+            result = self.client.table("employees")\
+                .select("*")\
+                .eq("id", employee_id)\
+                .single()\
+                .execute()
+
+            return result.data
+
+        except Exception as e:
+            logger.error(f"Erro ao buscar funcionário {employee_id}: {e}")
+            return None
+
+    async def insert_employee(
+        self,
+        name: str,
+        embedding: List[float],
+        email: Optional[str] = None,
+        status: str = "active"
+    ) -> Optional[Dict[str, Any]]:
+        """Cadastrar novo funcionário"""
+        if not self.client:
+            return None
+
+        try:
+            employee_data = {
+                "name": name,
+                "embedding": embedding,
+                "status": status,
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat()
+            }
+
+            if email:
+                employee_data["email"] = email
+
+            result = self.client.table("employees").insert(employee_data).execute()
+
+            if result.data:
+                logger.info(f"Funcionário cadastrado: {name}")
+                return result.data[0]
+            return None
+
+        except Exception as e:
+            logger.error(f"Erro ao cadastrar funcionário: {e}")
+            return None
+
+    async def delete_employee(self, employee_id: str) -> bool:
+        """Remover funcionário"""
+        if not self.client:
+            return False
+
+        try:
+            result = self.client.table("employees")\
+                .delete()\
+                .eq("id", employee_id)\
+                .execute()
+
+            if result.data:
+                logger.info(f"Funcionário removido: {employee_id}")
+                return True
+            return False
+
+        except Exception as e:
+            logger.error(f"Erro ao remover funcionário: {e}")
+            return False
+
+    async def insert_camera_event_simple(self, event_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Versão simplificada de insert_camera_event que aceita dict direto"""
+        return await self.insert_camera_event(
+            camera_id=event_data.get("camera_id", "camera1"),
+            timestamp=event_data.get("timestamp"),
+            people_count=event_data.get("total_people", 0),
+            customers_count=event_data.get("potential_customers", 0),
+            employees_count=event_data.get("employees_count", 0),
+            groups_count=event_data.get("groups_count", 0),
+            processing_time_ms=event_data.get("processing_time_ms", 0),
+            metadata={"groups_detail": event_data.get("groups_detail", [])}
+        )
+
     async def get_industry_benchmarks_data(self, industry: str, store_size: str) -> Dict[str, Any]:
         """Buscar dados de benchmarks da indústria do Supabase"""
         if not self.client:

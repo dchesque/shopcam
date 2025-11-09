@@ -1,0 +1,95 @@
+version: '3.8'
+
+# ============================================
+# SHOPFLOW MVP - DOCKER COMPOSE
+# ============================================
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: shopflow-backend
+
+    restart: unless-stopped
+
+    ports:
+      - "8001:8001"
+
+    environment:
+      # Supabase (obrigatório)
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+
+      # Camera RTSP (obrigatório)
+      - CAMERA_RTSP_URL=${CAMERA_RTSP_URL}
+
+      # YOLO Config
+      - YOLO_MODEL=${YOLO_MODEL:-yolo11n.pt}
+      - YOLO_CONFIDENCE=${YOLO_CONFIDENCE:-0.5}
+      - YOLO_DEVICE=${YOLO_DEVICE:-cpu}
+
+      # Camera Processing
+      - CAMERA_FPS_PROCESS=${CAMERA_FPS_PROCESS:-5}
+      - CAMERA_RECONNECT_TIMEOUT=${CAMERA_RECONNECT_TIMEOUT:-10}
+
+      # Group Detection
+      - GROUP_MAX_DISTANCE=${GROUP_MAX_DISTANCE:-1.5}
+      - GROUP_MIN_SIZE=${GROUP_MIN_SIZE:-2}
+
+      # Face Recognition
+      - FACE_RECOGNITION_ENABLED=${FACE_RECOGNITION_ENABLED:-true}
+      - FACE_TOLERANCE=${FACE_TOLERANCE:-0.6}
+
+      # Server
+      - PORT=${PORT:-8001}
+      - HOST=${HOST:-0.0.0.0}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+
+    volumes:
+      # Logs persistentes
+      - ./logs:/app/logs
+
+      # Uploads de funcionários (opcional)
+      - ./uploads:/app/uploads
+
+      # Face embeddings (opcional)
+      - ./face_embeddings:/app/face_embeddings
+
+    networks:
+      - shopflow-network
+
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  shopflow-network:
+    driver: bridge
+
+# ============================================
+# COMANDOS ÚTEIS
+# ============================================
+
+# Build e iniciar:
+#   docker-compose up -d --build
+
+# Ver logs:
+#   docker-compose logs -f backend
+
+# Parar:
+#   docker-compose down
+
+# Rebuild:
+#   docker-compose up -d --build --force-recreate
+
+# Acessar shell do container:
+#   docker-compose exec backend bash
+
+# Ver status:
+#   docker-compose ps

@@ -2,359 +2,338 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { MetricCard } from '@/components/dashboard/MetricCard'
-import dynamic from 'next/dynamic'
-
-// Lazy load heavy chart components
-const FlowChart = dynamic(() => import('@/components/charts/FlowChart').then(mod => ({ default: mod.FlowChart })), {
-  loading: () => <div className="h-[350px] bg-neutral-900/30 rounded-lg animate-pulse" />
-})
-
-const PieChart = dynamic(() => import('@/components/charts/PieChart').then(mod => ({ default: mod.PieChart })), {
-  loading: () => <div className="h-[350px] bg-neutral-900/30 rounded-lg animate-pulse" />
-})
-import { ConnectionStatus, ConnectionBanner } from '@/components/ui/connection-status'
-import { useRealTimeMetrics, useRealTimeFlowData } from '@/hooks/useRealTimeMetrics'
-import { useCameraHealth, useCameras } from '@/hooks/useCameras'
-import { 
-  Users, 
-  Camera, 
-  TrendingUp, 
-  Activity,
-  Eye,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
+import {
+  Users,
   UserCheck,
-  Download,
-  Plus,
-  ChevronRight
+  UsersRound,
+  TrendingUp,
+  Video,
+  RefreshCw
 } from 'lucide-react'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts'
+
+// ============================================
+// MVP DASHBOARD - SIMPLIFICADO
+// ============================================
 
 export default function DashboardPage() {
-  // Real-time connection with backend
-  const { health, isHealthy, isLoading: healthLoading } = useCameraHealth()
-  const { cameras, isLoading: camerasLoading } = useCameras()
-  const isConnected = isHealthy
-  const lastHeartbeat = new Date()
-  const connectionStatus = isConnected ? 'connected' : 'disconnected'
-
-  const { metrics, isLoading, lastUpdate, isLive } = useRealTimeMetrics({
-    enabled: true,
-    refreshInterval: 30000,
-    enableRealtime: true // Enable real-time data
+  const [metrics, setMetrics] = React.useState({
+    totalPeople: 0,
+    potentialCustomers: 0,
+    employees: 0,
+    groupsRate: 0,
   })
-  const { flowData } = useRealTimeFlowData('24h')
 
-  // Connection banner state
-  const [showBanner, setShowBanner] = React.useState(false)
-  const [bannerDismissed, setBannerDismissed] = React.useState(false)
+  const [chartData, setChartData] = React.useState<Array<{ time: string; people: number }>>([])
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [lastUpdate, setLastUpdate] = React.useState<Date>(new Date())
 
-  // Show connection banner when status changes
-  React.useEffect(() => {
-    if (!bannerDismissed) {
-      if (!isConnected) {
-        setShowBanner(true)
-      } else {
-        // Show connected banner briefly
-        setShowBanner(true)
-        setTimeout(() => setShowBanner(false), 3000)
-      }
-    }
-  }, [isConnected, bannerDismissed])
+  // Fetch metrics from backend
+  const fetchMetrics = React.useCallback(async () => {
+    try {
+      // Buscar métricas do backend
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+      const response = await fetch(`${apiUrl}/api/analytics/metrics`)
+      if (response.ok) {
+        const data = await response.json()
 
-  // Icon mapping for metrics
-  const iconMap = {
-    'people-in-store': Users,
-    'conversion-rate': TrendingUp,
-    'average-time': Clock,
-    'active-employees': UserCheck
-  }
-
-  const colorMap = {
-    'people-in-store': 'red' as const,
-    'conversion-rate': 'green' as const,
-    'average-time': 'purple' as const,
-    'active-employees': 'blue' as const
-  }
-
-  // Real data for distribution pie chart (from current metrics)
-  const distributionData = React.useMemo(() => {
-    const currentMetrics = metrics.find(m => m.id === 'people-in-store')
-    const totalPeople = typeof currentMetrics?.value === 'number' ? currentMetrics.value : 0
-
-    // Calculate distribution based on real data
-    const customersMetric = metrics.find(m => m.id === 'conversion-rate')
-    const employeesMetric = metrics.find(m => m.id === 'active-employees')
-
-    const customers = Math.round(totalPeople * 0.75) // Estimate 75% customers
-    const employees = typeof employeesMetric?.value === 'number' ? employeesMetric.value : 0
-    const visitors = Math.max(0, totalPeople - customers - employees)
-
-    return [
-      {
-        name: 'Clientes',
-        value: customers,
-        color: '#10b981'
-      },
-      {
-        name: 'Funcionários',
-        value: employees,
-        color: '#a855f7'
-      },
-      {
-        name: 'Visitantes',
-        value: visitors,
-        color: '#f59e0b'
-      },
-      {
-        name: 'Outros',
-        value: Math.max(0, Math.round(totalPeople * 0.05)), // 5% others
-        color: '#3b82f6'
-      }
-    ]
-  }, [metrics])
-
-  // Real camera status from backend
-  const cameraStatus = React.useMemo(() => {
-    return cameras.map(camera => ({
-      name: camera.name,
-      status: camera.status,
-      people: camera.peopleCount || 0
-    }))
-  }, [cameras])
-
-  // Generate recent events from real data (simplified)
-  const recentEvents = React.useMemo(() => {
-    const events = []
-    let id = 1
-
-    // Add camera-based events
-    cameras.forEach((camera, index) => {
-      if (camera.peopleCount > 0) {
-        events.push({
-          id: id++,
-          type: 'entry',
-          message: `${camera.peopleCount} pessoa(s) detectada(s) em ${camera.name}`,
-          time: `${Math.floor(Math.random() * 15) + 1} min atrás`
+        setMetrics({
+          totalPeople: data.total_people || 0,
+          potentialCustomers: data.potential_customers || 0,
+          employees: data.employees_count || 0,
+          groupsRate: data.groups_count || 0,
         })
-      }
-    })
 
-    // Limit to 4 most recent
-    return events.slice(0, 4)
-  }, [cameras])
+        setLastUpdate(new Date())
+      }
+    } catch (error) {
+      console.error('Error fetching metrics:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  // Fetch chart data (últimas 24h)
+  const fetchChartData = React.useCallback(async () => {
+    try {
+      // Buscar dados históricos
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+      const response = await fetch(`${apiUrl}/api/analytics/history?hours=24`)
+      if (response.ok) {
+        const data = await response.json()
+
+        // Formatar dados para o gráfico
+        const formatted = data.map((item: any) => ({
+          time: new Date(item.timestamp).toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          people: item.total_people || 0
+        }))
+
+        setChartData(formatted)
+      }
+    } catch (error) {
+      console.error('Error fetching chart data:', error)
+
+      // Dados de exemplo se falhar
+      setChartData(generateDummyData())
+    }
+  }, [])
+
+  // Initial fetch
+  React.useEffect(() => {
+    fetchMetrics()
+    fetchChartData()
+
+    // Auto-refresh a cada 30 segundos
+    const interval = setInterval(() => {
+      fetchMetrics()
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [fetchMetrics, fetchChartData])
 
   return (
     <div className="space-y-6">
-      {/* Connection Banner */}
-      <ConnectionBanner
-        show={showBanner}
-        status={isConnected ? 'connected' : 'disconnected'}
-        onDismiss={() => {
-          setShowBanner(false)
-          setBannerDismissed(true)
-        }}
-      />
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-2xl font-bold text-white mb-2"
-          >
-            Dashboard
-          </motion.h1>
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-neutral-400"
-          >
-            Visão geral das atividades em tempo real
-          </motion.p>
+          <h1 className="text-2xl font-bold text-white mb-2">
+            Dashboard MVP
+          </h1>
+          <p className="text-neutral-400">
+            Última atualização: {lastUpdate.toLocaleTimeString('pt-BR')}
+          </p>
         </div>
 
-        {/* Connection Status */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
+        <Button
+          onClick={() => {
+            fetchMetrics()
+            fetchChartData()
+          }}
+          variant="outline"
+          size="sm"
+          className="text-neutral-400 border-neutral-700"
         >
-          <ConnectionStatus
-            status={connectionStatus === 'connected' ? 'connected' : 
-                    connectionStatus === 'connecting' ? 'connecting' : 'disconnected'}
-            lastHeartbeat={lastHeartbeat}
-            showLabel={true}
-            showLastUpdate={true}
-          />
-        </motion.div>
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Atualizar
+        </Button>
       </div>
 
-      {/* Metrics Grid */}
+      {/* Metrics Grid - 4 Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {metrics.map((metric, index) => (
-          <motion.div
-            key={metric.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <MetricCard
-              title={metric.title}
-              value={metric.value}
-              change={metric.change}
-              trend={metric.trend}
-              icon={iconMap[metric.id as keyof typeof iconMap] || Users}
-              color={colorMap[metric.id as keyof typeof colorMap] || 'red'}
-              sparklineData={metric.sparklineData}
-              isLoading={isLoading}
-              isLive={metric.isLive}
-              lastUpdate={metric.lastUpdate}
-            />
-          </motion.div>
-        ))}
+        {/* Total Pessoas */}
+        <MetricCardSimple
+          title="Total de Pessoas"
+          value={metrics.totalPeople}
+          icon={Users}
+          color="blue"
+          isLoading={isLoading}
+        />
+
+        {/* Clientes Potenciais */}
+        <MetricCardSimple
+          title="Clientes Potenciais"
+          value={metrics.potentialCustomers}
+          icon={TrendingUp}
+          color="green"
+          isLoading={isLoading}
+        />
+
+        {/* Funcionários */}
+        <MetricCardSimple
+          title="Funcionários"
+          value={metrics.employees}
+          icon={UserCheck}
+          color="purple"
+          isLoading={isLoading}
+        />
+
+        {/* Grupos */}
+        <MetricCardSimple
+          title="Grupos Detectados"
+          value={metrics.groupsRate}
+          icon={UsersRound}
+          color="yellow"
+          isLoading={isLoading}
+        />
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Flow Chart */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="lg:col-span-2"
-        >
-          <FlowChart
-            data={flowData}
-            title="Fluxo de Pessoas"
-            subtitle="Últimas 24 horas"
-            timeRange="24h"
-            height={350}
+      {/* Gráfico Simples - Últimas 24h */}
+      <Card className="p-6 bg-neutral-900/50 border-neutral-800/50">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-white">
+              Fluxo de Pessoas
+            </h3>
+            <p className="text-sm text-neutral-400">Últimas 24 horas</p>
+          </div>
+        </div>
+
+        <div className="h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+              <XAxis
+                dataKey="time"
+                stroke="#666"
+                fontSize={12}
+                tickLine={false}
+              />
+              <YAxis
+                stroke="#666"
+                fontSize={12}
+                tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#1a1a1a',
+                  border: '1px solid #333',
+                  borderRadius: '8px',
+                  color: '#fff'
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="people"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                dot={{ fill: '#3b82f6', r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      {/* Preview da Câmera */}
+      <Card className="p-6 bg-neutral-900/50 border-neutral-800/50">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-white">Câmera ao Vivo</h3>
+            <p className="text-sm text-neutral-400">Stream em tempo real</p>
+          </div>
+
+          <Link href="/cameras">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-neutral-400 border-neutral-700"
+            >
+              <Video className="w-4 h-4 mr-2" />
+              Ver Fullscreen
+            </Button>
+          </Link>
+        </div>
+
+        {/* Preview do Stream MJPEG */}
+        <div className="relative bg-neutral-800/30 rounded-lg overflow-hidden aspect-video">
+          <img
+            src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/camera/stream`}
+            alt="Camera stream"
+            className="w-full h-full object-contain"
+            onError={(e) => {
+              // Fallback se stream não estiver disponível
+              e.currentTarget.src = '/placeholder-camera.png'
+            }}
           />
-        </motion.div>
-        
-        {/* Distribution Chart */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <PieChart
-            data={distributionData}
-            title="Distribuição"
-            subtitle="Hoje"
-            showLegend={true}
-            height={350}
-          />
-        </motion.div>
-      </div>
 
-      {/* Camera Status Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="lg:col-span-2"
-        >
-          <Card className="p-6 bg-neutral-900/50 border-neutral-800/50">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-white">Status das Câmeras</h3>
-              <Link href="/cameras">
-                <Button variant="ghost" size="sm" className="text-neutral-400">
-                  <Eye className="w-4 h-4 mr-2" />
-                  Ver Todas
-                </Button>
-              </Link>
+          {/* Overlay com legenda */}
+          <div className="absolute bottom-4 right-4 bg-black/70 p-3 rounded-lg text-xs space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="text-white">Cliente</span>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {cameraStatus.map((camera, index) => (
-                <motion.div
-                  key={camera.name}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 + index * 0.1 }}
-                  className="p-4 bg-neutral-800/30 rounded-lg border border-neutral-700/30"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-medium text-white">{camera.name}</h4>
-                    <div className="flex items-center gap-2">
-                      {camera.status === 'online' ? (
-                        <>
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                          <span className="text-xs text-green-500">Online</span>
-                        </>
-                      ) : (
-                        <>
-                          <AlertTriangle className="w-4 h-4 text-red-500" />
-                          <span className="text-xs text-red-500">Offline</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-neutral-400" />
-                    <span className="text-sm text-neutral-300">{camera.people} pessoas</span>
-                  </div>
-                </motion.div>
-              ))}
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span className="text-white">Funcionário</span>
             </div>
-          </Card>
-        </motion.div>
-
-        {/* Recent Events */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Card className="p-6 bg-neutral-900/50 border-neutral-800/50">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-white">Eventos Recentes</h3>
-              <Link href="/analytics">
-                <Button variant="ghost" size="sm" className="text-neutral-400">
-                  Ver Todos
-                </Button>
-              </Link>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <span className="text-white">Grupo</span>
             </div>
-            
-            <div className="space-y-4">
-              {recentEvents.map((event, index) => (
-                <motion.div
-                  key={event.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 + index * 0.1 }}
-                  className="flex items-start gap-3 p-3 bg-neutral-800/20 rounded-lg"
-                >
-                  <div className={`p-2 rounded-lg ${
-                    event.type === 'entry' ? 'bg-green-500/10 text-green-500' :
-                    event.type === 'exit' ? 'bg-blue-500/10 text-blue-500' :
-                    'bg-yellow-500/10 text-yellow-500'
-                  }`}>
-                    {event.type === 'alert' ? (
-                      <AlertTriangle className="w-4 h-4" />
-                    ) : (
-                      <Activity className="w-4 h-4" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-white">{event.message}</p>
-                    <p className="text-xs text-neutral-500 mt-1">{event.time}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </Card>
-        </motion.div>
-      </div>
+          </div>
+        </div>
+      </Card>
     </div>
   )
+}
+
+// ============================================
+// Metric Card Simplificado
+// ============================================
+
+interface MetricCardSimpleProps {
+  title: string
+  value: number
+  icon: React.ElementType
+  color: 'blue' | 'green' | 'purple' | 'yellow'
+  isLoading?: boolean
+}
+
+function MetricCardSimple({
+  title,
+  value,
+  icon: Icon,
+  color,
+  isLoading
+}: MetricCardSimpleProps) {
+  const colorClasses = {
+    blue: 'bg-blue-500/10 text-blue-500',
+    green: 'bg-green-500/10 text-green-500',
+    purple: 'bg-purple-500/10 text-purple-500',
+    yellow: 'bg-yellow-500/10 text-yellow-500',
+  }
+
+  return (
+    <Card className="p-6 bg-neutral-900/50 border-neutral-800/50">
+      <div className="flex items-center justify-between mb-4">
+        <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
+          <Icon className="w-5 h-5" />
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <p className="text-sm text-neutral-400">{title}</p>
+        {isLoading ? (
+          <div className="h-8 bg-neutral-800 rounded animate-pulse w-20" />
+        ) : (
+          <p className="text-3xl font-bold text-white">{value}</p>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+// ============================================
+// Dummy Data Generator (fallback)
+// ============================================
+
+function generateDummyData() {
+  const data = []
+  const now = new Date()
+
+  for (let i = 24; i >= 0; i--) {
+    const time = new Date(now.getTime() - i * 60 * 60 * 1000)
+    data.push({
+      time: time.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      people: Math.floor(Math.random() * 20) + 5
+    })
+  }
+
+  return data
 }

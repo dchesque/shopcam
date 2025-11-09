@@ -26,11 +26,21 @@ class Settings(BaseSettings):
     YOLO_CONFIDENCE: float = 0.6
     YOLO_IOU: float = 0.45
     DETECTION_CLASSES: List[int] = [0]  # 0 = person
-    
+
+    # RTSP Camera (MVP - substituindo bridge)
+    CAMERA_RTSP_URL: str = os.getenv("CAMERA_RTSP_URL", "rtsp://admin:password@192.168.1.100:554/cam/realmonitor?channel=1&subtype=0")
+    CAMERA_FPS_PROCESS: int = 5  # FPS para processamento
+    CAMERA_RECONNECT_TIMEOUT: int = 10  # Segundos antes de tentar reconectar
+    FACE_RECOGNITION_ENABLED: bool = True  # Habilitar reconhecimento facial
+
     # Tracking
     TRACKING_MAX_DISAPPEARED: int = 30
     TRACKING_MAX_DISTANCE: float = 50.0
     LINE_POSITION: int = 50  # Percentage from top
+
+    # Group Detection (MVP)
+    GROUP_MAX_DISTANCE: float = 1.5  # Metros entre pessoas para considerar grupo
+    GROUP_MIN_SIZE: int = 2  # Tamanho mínimo de grupo
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"

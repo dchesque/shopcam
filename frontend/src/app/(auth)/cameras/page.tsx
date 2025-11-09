@@ -1,323 +1,249 @@
 'use client'
 
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { 
-  Camera, 
-  Settings, 
-  Download, 
-  RotateCcw,
-  Maximize2,
-  Eye,
-  EyeOff,
-  Wifi,
-  WifiOff,
-  AlertTriangle
-} from 'lucide-react'
-import { CameraGrid } from '@/components/cameras/CameraGrid'
-import { useCameras, useCameraHealth } from '@/hooks/useCameras'
+import * as React from 'react'
 import { Button } from '@/components/ui/button'
-import { Camera as CameraType } from '@/types'
-import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
-import { useDetection } from '@/contexts/DetectionContext'
+import { Card } from '@/components/ui/card'
+import {
+  Camera,
+  Download,
+  Pause,
+  Play,
+  RefreshCw,
+  Maximize2,
+  Minimize2
+} from 'lucide-react'
 
+// ============================================
+// MVP CAMERA PAGE - SIMPLIFICADO
+// ============================================
 
 export default function CamerasPage() {
-  const { cameras, isLoading, refetch, captureSnapshot, processFrame } = useCameras()
-  const { health, isHealthy } = useCameraHealth()
-  const { getTotalPeople, getCustomersCount, getEmployeesCount } = useDetection()
-  const [selectedCamera, setSelectedCamera] = useState<CameraType | null>(null)
-  const [showDetections, setShowDetections] = useState(true)
-  const [fullscreenCamera, setFullscreenCamera] = useState<string | null>(null)
+  const [isPaused, setIsPaused] = React.useState(false)
+  const [isFullscreen, setIsFullscreen] = React.useState(false)
+  const [streamKey, setStreamKey] = React.useState(0)
+  const containerRef = React.useRef<HTMLDivElement>(null)
 
-  const onlineCameras = cameras.filter(cam => cam.status === 'online')
-  const offlineCameras = cameras.filter(cam => cam.status === 'offline')
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+  const streamUrl = `${apiUrl}/api/camera/stream?t=${streamKey}`
 
-  const handleCameraSelect = (camera: CameraType) => {
-    if (camera) {
-      setSelectedCamera(camera)
-      toast.info(`Câmera selecionada: ${camera.name}`)
+  // Handle snapshot download
+  const handleSnapshot = () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+    const link = document.createElement('a')
+    link.href = streamUrl
+    link.download = `snapshot-${timestamp}.jpg`
+    link.click()
+  }
+
+  // Handle pause/play
+  const handleTogglePause = () => {
+    setIsPaused(!isPaused)
+  }
+
+  // Handle refresh stream
+  const handleRefresh = () => {
+    setStreamKey(prev => prev + 1)
+  }
+
+  // Handle fullscreen toggle
+  const handleToggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen()
+      setIsFullscreen(true)
+    } else {
+      document.exitFullscreen()
+      setIsFullscreen(false)
     }
   }
 
-  const handleSnapshot = async (cameraId: string) => {
-    try {
-      const camera = cameras.find(cam => cam.id === cameraId)
-      if (!camera) return
-
-      toast.loading('Capturando snapshot...', { id: 'snapshot' })
-      
-      const snapshot = await captureSnapshot(cameraId)
-      
-      // Simular download do snapshot
-      const link = document.createElement('a')
-      link.href = snapshot
-      link.download = `snapshot-${camera.name}-${new Date().toISOString().slice(0, 19)}.jpg`
-      link.click()
-      
-      toast.success(`Snapshot capturado: ${camera.name}`, { id: 'snapshot' })
-    } catch (error) {
-      toast.error('Erro ao capturar snapshot', { id: 'snapshot' })
+  // Listen for fullscreen changes
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
     }
-  }
 
-  const handleFullscreen = (cameraId: string) => {
-    setFullscreenCamera(cameraId)
-    toast.info('Modo fullscreen ativado - Pressione ESC para sair')
-  }
-
-  const handleSettings = (cameraId: string) => {
-    const camera = cameras.find(cam => cam.id === cameraId)
-    if (camera) {
-      toast.info(`Configurações: ${camera.name}`)
-      // Em produção, abriria modal de configurações
-    }
-  }
-
-  const toggleDetections = () => {
-    setShowDetections(!showDetections)
-    toast.success(`Detecções ${!showDetections ? 'ativadas' : 'desativadas'}`)
-  }
-
-  const handleRefreshAll = () => {
-    refetch()
-    toast.success('Câmeras atualizadas')
-  }
-
-  if (isLoading) {
-    return (
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Câmeras</h1>
-            <p className="text-neutral-400 mt-1">Carregando sistema de câmeras...</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="aspect-video bg-neutral-900 rounded-2xl animate-pulse" />
-          ))}
-        </div>
-      </div>
-    )
-  }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Câmeras</h1>
-          <p className="text-neutral-400 mt-1">
-            {onlineCameras.length} online • {offlineCameras.length} offline
+          <h1 className="text-2xl font-bold text-white mb-2">
+            Câmera ao Vivo
+          </h1>
+          <p className="text-neutral-400">
+            Stream em tempo real com detecções de IA
           </p>
         </div>
-        
-        <div className="flex items-center gap-3">
-          {/* Health Status */}
-          <div className={cn(
-            "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium",
-            isHealthy 
-              ? "bg-green-500/10 text-green-400 border border-green-500/20"
-              : "bg-red-500/10 text-red-400 border border-red-500/20"
-          )}>
-            {isHealthy ? (
-              <Wifi className="w-4 h-4" />
-            ) : (
-              <WifiOff className="w-4 h-4" />
-            )}
-            Sistema {isHealthy ? 'Saudável' : 'Com Problemas'}
-          </div>
 
-          {/* Controls */}
+        {/* Controls */}
+        <div className="flex items-center gap-2">
           <Button
-            variant="ghost"
-            size="md"
-            onClick={toggleDetections}
-            className={showDetections ? 'text-green-400' : 'text-neutral-400'}
+            onClick={handleTogglePause}
+            variant="outline"
+            size="sm"
+            className="text-neutral-400 border-neutral-700"
           >
-            {showDetections ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-            Detecções
+            {isPaused ? (
+              <>
+                <Play className="w-4 h-4 mr-2" />
+                Retomar
+              </>
+            ) : (
+              <>
+                <Pause className="w-4 h-4 mr-2" />
+                Pausar
+              </>
+            )}
           </Button>
 
           <Button
-            variant="ghost"
-            size="md"
-            onClick={handleRefreshAll}
+            onClick={handleSnapshot}
+            variant="outline"
+            size="sm"
+            className="text-neutral-400 border-neutral-700"
           >
-            <RotateCcw className="w-4 h-4" />
+            <Download className="w-4 h-4 mr-2" />
+            Snapshot
+          </Button>
+
+          <Button
+            onClick={handleRefresh}
+            variant="outline"
+            size="sm"
+            className="text-neutral-400 border-neutral-700"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
             Atualizar
           </Button>
 
           <Button
-            variant="primary"
-            size="md"
-            onClick={() => toast.info('Configurações em desenvolvimento')}
+            onClick={handleToggleFullscreen}
+            variant="outline"
+            size="sm"
+            className="text-neutral-400 border-neutral-700"
           >
-            <Settings className="w-4 h-4" />
-            Configurações
+            {isFullscreen ? (
+              <>
+                <Minimize2 className="w-4 h-4 mr-2" />
+                Sair
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-4 h-4 mr-2" />
+                Fullscreen
+              </>
+            )}
           </Button>
         </div>
       </div>
 
-      {/* System Health Alert */}
-      {!isHealthy && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4"
-        >
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="text-yellow-400 font-semibold">
-                Sistema de Análise com Problemas
-              </h3>
-              <p className="text-yellow-300/80 text-sm mt-1">
-                Alguns módulos de IA podem estar indisponíveis. Verifique a conexão com o backend.
-              </p>
-              <div className="mt-2 text-xs text-yellow-300/60">
-                Status dos módulos: Detector: {health?.detector_loaded ? '✓' : '✗'} • 
-                Analytics: {health?.analytics_initialized ? '✓' : '✗'}
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Selected Camera Info */}
-      {selectedCamera && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
-                <Camera className="w-5 h-5 text-blue-400" />
-              </div>
-              <div>
-                <h3 className="text-blue-400 font-semibold">
-                  {selectedCamera.name}
-                </h3>
-                <p className="text-blue-300/80 text-sm">
-                  {selectedCamera.location} • {selectedCamera.peopleCount} pessoas detectadas
+      {/* Stream Container */}
+      <Card
+        ref={containerRef}
+        className="relative bg-neutral-900/50 border-neutral-800/50 overflow-hidden"
+      >
+        {/* Stream MJPEG */}
+        <div className="relative bg-neutral-800/30 aspect-video">
+          {!isPaused ? (
+            <img
+              key={streamKey}
+              src={streamUrl}
+              alt="Camera stream"
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                // Fallback se stream não estiver disponível
+                console.error('Stream error')
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-center">
+                <Camera className="w-16 h-16 text-neutral-600 mx-auto mb-4" />
+                <p className="text-neutral-400 text-lg">Stream pausado</p>
+                <p className="text-neutral-500 text-sm mt-2">
+                  Clique em "Retomar" para continuar
                 </p>
               </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleSnapshot(selectedCamera.id)}
-                className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
-              >
-                <Download className="w-4 h-4" />
-                Snapshot
-              </Button>
-              
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleFullscreen(selectedCamera.id)}
-                className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
-              >
-                <Maximize2 className="w-4 h-4" />
-                Expandir
-              </Button>
+          )}
+
+          {/* Overlay - Legenda de Cores */}
+          <div className="absolute bottom-4 right-4 bg-black/80 backdrop-blur-sm p-4 rounded-lg border border-neutral-700/50 space-y-2">
+            <div className="text-white font-semibold text-sm mb-3">
+              Legenda de Detecções
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+              <span className="text-white text-sm">Cliente</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+              <span className="text-white text-sm">Funcionário</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
+              <span className="text-white text-sm">Grupo</span>
             </div>
           </div>
-        </motion.div>
-      )}
 
-      {/* Camera Grid */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        {cameras.length > 0 ? (
-          <CameraGrid
-            cameras={cameras}
-            onCameraSelect={handleCameraSelect}
-            onSnapshot={handleSnapshot}
-            onFullscreen={handleFullscreen}
-            onSettings={handleSettings}
-          />
-        ) : (
-          <div className="text-center py-12">
-            <Camera className="w-16 h-16 text-neutral-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">
-              Nenhuma câmera encontrada
+          {/* Status Indicator */}
+          <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-neutral-700/50">
+            <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-yellow-500' : 'bg-green-500 animate-pulse'}`}></div>
+            <span className="text-white text-sm font-medium">
+              {isPaused ? 'Pausado' : 'Ao Vivo'}
+            </span>
+          </div>
+        </div>
+
+        {/* Info Bar */}
+        <div className="p-4 bg-neutral-900/80 border-t border-neutral-800/50">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Camera className="w-4 h-4 text-neutral-400" />
+                <span className="text-neutral-300">Câmera Principal</span>
+              </div>
+              <div className="w-px h-4 bg-neutral-700"></div>
+              <span className="text-neutral-400">
+                RTSP Stream • 5 FPS
+              </span>
+            </div>
+
+            <div className="text-neutral-400">
+              Última atualização: {new Date().toLocaleTimeString('pt-BR')}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Instructions */}
+      <Card className="p-4 bg-neutral-900/30 border-neutral-800/50">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Camera className="w-4 h-4 text-blue-400" />
+          </div>
+          <div>
+            <h3 className="text-white font-semibold mb-1">
+              Como funciona o sistema de detecção
             </h3>
-            <p className="text-neutral-400 mb-6 max-w-md mx-auto">
-              Configure suas câmeras para começar a monitorar o fluxo de pessoas em tempo real.
-            </p>
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={() => toast.info('Configuração de câmeras em desenvolvimento')}
-            >
-              <Settings className="w-5 h-5 mr-2" />
-              Configurar Câmeras
-            </Button>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Statistics Summary */}
-      {cameras.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-4 gap-4"
-        >
-          <div className="bg-neutral-900/50 rounded-xl p-4 border border-neutral-800">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-neutral-400 text-sm">Total Pessoas</span>
-              <Wifi className="w-4 h-4 text-green-400" />
+            <div className="text-neutral-400 text-sm space-y-1">
+              <p>• <strong className="text-green-400">Verde:</strong> Clientes individuais ou em grupos pequenos (1-4 pessoas)</p>
+              <p>• <strong className="text-blue-400">Azul:</strong> Funcionários identificados pelo reconhecimento facial</p>
+              <p>• <strong className="text-yellow-400">Amarelo:</strong> Grupos grandes (5+ pessoas)</p>
+              <p className="mt-2 text-xs text-neutral-500">
+                Dica: Use o botão "Fullscreen" para visualização em tela cheia. Pressione ESC para sair.
+              </p>
             </div>
-            <p className="text-2xl font-bold text-white">
-              {getTotalPeople()}
-            </p>
           </div>
-
-          <div className="bg-neutral-900/50 rounded-xl p-4 border border-neutral-800">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-neutral-400 text-sm">Clientes</span>
-              <Wifi className="w-4 h-4 text-blue-400" />
-            </div>
-            <p className="text-2xl font-bold text-blue-400">
-              {getCustomersCount()}
-            </p>
-          </div>
-
-          <div className="bg-neutral-900/50 rounded-xl p-4 border border-neutral-800">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-neutral-400 text-sm">Funcionários</span>
-              <Wifi className="w-4 h-4 text-purple-400" />
-            </div>
-            <p className="text-2xl font-bold text-purple-400">
-              {getEmployeesCount()}
-            </p>
-          </div>
-
-          <div className="bg-neutral-900/50 rounded-xl p-4 border border-neutral-800">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-neutral-400 text-sm">Câmeras Online</span>
-              <Wifi className="w-4 h-4 text-green-400" />
-            </div>
-            <p className="text-2xl font-bold text-green-400">
-              {onlineCameras.length}/{cameras.length}
-            </p>
-          </div>
-        </motion.div>
-      )}
+        </div>
+      </Card>
     </div>
   )
 }
