@@ -7,8 +7,8 @@ from typing import List
 import os
 
 class Settings(BaseSettings):
-    # Supabase
-    SUPABASE_URL: str = "https://orzzycayjzgcuvcsrxsi.supabase.co"
+    # Supabase - Always read from .env file
+    SUPABASE_URL: str = ""
     SUPABASE_ANON_KEY: str = ""
     SUPABASE_SERVICE_KEY: str = ""
     
