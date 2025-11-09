@@ -59,7 +59,13 @@ class Settings(BaseSettings):
     HEALTH_CHECK_ENABLED: bool = True
     
     # CORS
-    ALLOWED_ORIGINS: List[str] = ["https://shopflow-frontend.hshars.easypanel.host", "http://localhost:3000", "http://localhost:3001"]
+    ALLOWED_ORIGINS: List[str] = [
+        "https://shopflow-frontend.hshars.easypanel.host",
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001"
+    ]
     
     # WebSocket
     WS_MAX_CONNECTIONS: int = 100

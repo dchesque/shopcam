@@ -216,7 +216,11 @@ async def camera_stream():
     """
     return StreamingResponse(
         generate_mjpeg_stream(),
-        media_type="multipart/x-mixed-replace; boundary=frame"
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={
+            "Cache-Control": "no-cache",
+            "Access-Control-Allow-Origin": "*",
+        }
     )
 
 

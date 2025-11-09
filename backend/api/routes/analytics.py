@@ -118,15 +118,15 @@ async def get_mvp_history(
                     "total_people": event.get("total_people", 0)
                 })
 
-            return history_data
+            return {"data": history_data, "status": "success"}
         else:
             # Gerar dados dummy se não houver eventos
-            return generate_dummy_history(hours)
+            return {"data": generate_dummy_history(hours), "status": "success"}
 
     except Exception as e:
         logger.error(f"Erro ao obter histórico MVP: {e}")
         # Retornar dados dummy em caso de erro
-        return generate_dummy_history(hours)
+        return {"data": generate_dummy_history(hours), "status": "success"}
 
 
 def generate_dummy_history(hours: int) -> List[Dict[str, Any]]:
