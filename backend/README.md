@@ -1,343 +1,189 @@
-# 🏪 ShopFlow Backend - Sistema Inteligente de Análise de Fluxo
+# 🏪 ShopFlow Backend
 
 [![Python](https://img.shields.io/badge/python-v3.11+-blue.svg)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688.svg)](https://fastapi.tiangolo.com/)
-[![YOLO](https://img.shields.io/badge/YOLO-v11-yellow.svg)](https://github.com/ultralytics/ultralytics)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-009688.svg)](https://fastapi.tiangolo.com/)
+[![YOLO](https://img.shields.io/badge/YOLO-v11n-yellow.svg)](https://github.com/ultralytics/ultralytics)
 
-## 🎯 O que é o ShopFlow Backend?
+Backend do ShopFlow MVP - Sistema de análise de fluxo de clientes com IA.
 
-Sistema completo de **Inteligência Artificial** para análise de fluxo de pessoas em estabelecimentos comerciais. Utiliza visão computacional avançada para fornecer insights em tempo real sobre comportamento de clientes, otimização de staffing e predições inteligentes.
+## 🎯 Features MVP
 
-### ✨ Funcionalidades Principais
-
-- 🎥 **Detecção Inteligente**: YOLO11 para detecção precisa de pessoas
-- 👤 **Reconhecimento Facial**: Sistema LGPD-compliant para funcionários  
-- 🎭 **Análise Comportamental**: Padrões de movimento e zonas quentes
-- 🎯 **Segmentação de Clientes**: Classificação automática de perfis
-- 🔮 **Predições IA**: Previsões de fluxo e necessidade de staffing
-- 🔒 **Privacidade Total**: Conformidade LGPD/GDPR
-- ⚡ **Tempo Real**: WebSocket para métricas instantâneas
+- 🎥 **Detecção de Pessoas**: YOLO11n em tempo real
+- 👥 **Detecção de Grupos**: DBSCAN para clustering espacial
+- 👤 **Reconhecimento Facial**: Identificação de funcionários (LGPD-compliant)
+- 📊 **Cálculo de Clientes Potenciais**: Lógica inteligente baseada em grupos
+- 🎬 **Stream MJPEG**: Visualização ao vivo com bounding boxes
+- 🗄️ **Persistência**: Supabase PostgreSQL
 
 ## 🚀 Quick Start
 
-### 1️⃣ Instalação Local
+### Instalação Local
 
 ```bash
-# Clonar repositório
-git clone https://github.com/seu-usuario/shopflow-jcplussize.git
-cd shopflow-jcplussize/backend
+cd backend
 
 # Criar ambiente virtual
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate     # Windows
+# ou venv\Scripts\activate  # Windows
 
 # Instalar dependências
 pip install -r requirements.txt
 
-# Configurar variáveis (.env)
-cp .env.example .env
-# Edite o .env com suas configurações
+# Configurar .env
+cp .env.production.template .env
+# Editar .env com suas credenciais
 
 # Executar
 python main.py
 ```
 
-### 2️⃣ Deploy Docker/EasyPanel
+### Deploy com Docker
 
 ```bash
-# Build da imagem
-docker build -t shopflow-backend .
+# Via Docker Compose (recomendado)
+docker-compose up -d
 
-# Executar container
-docker run -p 8001:8001 --env-file .env shopflow-backend
+# Verificar logs
+docker-compose logs -f
 ```
 
-### 3️⃣ Verificar Funcionamento
+### Verificar Funcionamento
 
 ```bash
+# Health check
 curl http://localhost:8001/api/health
+
+# Swagger docs
+open http://localhost:8001/docs
 ```
+
+---
 
 ## 🏗️ Arquitetura
 
-```mermaid
-graph TB
-    A[📹 Câmera RTSP] --> C[📡 FastAPI + RTSP Processor]
-    C --> D[🧠 Smart Analytics Engine]
-
-    D --> E[👤 Face Recognition]
-    D --> F[🎭 Behavior Analyzer]
-    D --> G[🎯 Customer Segmentation]
-    D --> H[🔮 Predictive Insights]
-
-    C --> I[🗄️ Supabase]
-    C --> J[🔄 MJPEG Stream]
-
-    E --> K[🔒 Privacy Manager]
-    F --> K
-    G --> K
-    H --> K
 ```
+📹 Câmera RTSP
+    ↓
+RTSPCameraManager (5 FPS)
+    ↓
+YOLOPersonDetector (detecção)
+    ↓
+GroupDetectorSimple (agrupamento)
+    ↓
+FaceRecognitionManager (identificação)
+    ↓
+Métricas → Supabase
+    ↓
+MJPEG Stream → Frontend
+```
+
+**Detalhes:** Ver [ARCHITECTURE.md](../ARCHITECTURE.md)
+
+---
 
 ## 📊 API Endpoints
 
-### 🏥 Sistema
-- `GET /api/health` - Status geral do sistema
-- `GET /docs` - Documentação interativa (Swagger)
+### Sistema
+- `GET /api/health` - Health check
+- `GET /docs` - Swagger UI
 
-### 🎥 Câmera
-- `GET /api/camera/stream` - Stream MJPEG ao vivo com detecções
-- `GET /api/camera/stats` - Estatísticas da câmera
-- `GET /api/camera/status` - Status dos serviços de câmera
+### Câmera
+- `GET /api/camera/stream` - Stream MJPEG
+- `GET /api/camera/stats` - Estatísticas
+- `GET /api/camera/status` - Status
 
-### 📈 Analytics
+### Analytics
+- `GET /api/analytics/metrics` - Métricas 24h
 - `GET /api/analytics/smart-metrics` - Métricas inteligentes
-- `GET /api/analytics/behavior-patterns` - Padrões comportamentais
-- `GET /api/analytics/predictions` - Predições de IA
-- `GET /api/analytics/segmentation` - Segmentação de clientes
+- `GET /api/analytics/health` - Health analytics
 
-### 👥 Funcionários
-- `POST /api/employees/register` - Registrar funcionário
-- `GET /api/employees/list` - Listar funcionários
-- `GET /api/employees/{id}` - Detalhes do funcionário
-- `DELETE /api/employees/{id}` - Remover funcionário (LGPD)
+### Funcionários
+- `POST /api/employees/register` - Cadastrar
+- `GET /api/employees/list` - Listar
+- `DELETE /api/employees/{id}` - Remover (LGPD)
 
-### 🔒 Privacidade
-- `GET /api/privacy/settings` - Configurações de privacidade
-- `GET /api/privacy/compliance-report` - Relatório LGPD/GDPR
+**Referência completa:** [docs/API.md](../docs/API.md)
+
+---
 
 ## ⚙️ Configuração
 
-### Variáveis Essenciais (.env)
+### .env Essencial
 
 ```env
-# Supabase (obrigatório)
-SUPABASE_URL=https://seu-projeto.supabase.co
-SUPABASE_ANON_KEY=sua-chave-anonima
-SUPABASE_SERVICE_KEY=sua-service-key
+# Supabase
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_SERVICE_KEY=eyJ...
 
 # API
 API_HOST=0.0.0.0
 API_PORT=8001
 
 # Câmera RTSP
-CAMERA_RTSP_URL=rtsp://admin:senha@IP:554/stream
+CAMERA_RTSP_URL=rtsp://admin:senha@IP:554/...
 
-# IA (opcional - valores padrão funcionam)
+# IA
 YOLO_MODEL=yolo11n.pt
-YOLO_CONFIDENCE=0.5
+FACE_RECOGNITION_ENABLED=True
 ```
 
-## 🧠 Smart Analytics Engine
-
-O coração do sistema com 4 módulos especializados:
-
-### 1. 👤 Face Recognition Manager
-- Registro seguro de funcionários
-- Reconhecimento em tempo real
-- Total conformidade LGPD/GDPR
-- Direito ao esquecimento
-
-### 2. 🎭 Behavior Analyzer
-- Zonas quentes (heatmap)
-- Tempo de permanência
-- Padrões de movimento
-- Detecção de grupos
-
-### 3. 🎯 Customer Segmentation
-- Novos clientes
-- Clientes regulares
-- Clientes VIP
-- Funcionários
-
-### 4. 🔮 Predictive Insights
-- Previsão de fluxo
-- Necessidade de staffing
-- Probabilidade de conversão
-- Detecção de anomalias
-
-## 📱 Exemplo de Uso
-
-### Processar Frame da Câmera
-
-```python
-import requests
-
-# Enviar frame para análise
-with open('frame.jpg', 'rb') as f:
-    response = requests.post(
-        'http://localhost:8001/api/camera/process',
-        files={'frame': f},
-        data={
-            'timestamp': '2025-01-04T10:30:00Z',
-            'camera_id': 'cam_001'
-        },
-        headers={'Authorization': 'Bearer SUA_API_KEY'}
-    )
-
-result = response.json()
-print(f"Pessoas detectadas: {result['people_count']}")
-print(f"Funcionários: {result['employees_detected']}")
-```
-
-### WebSocket Tempo Real
-
-```javascript
-const ws = new WebSocket('ws://localhost:8001/ws/smart-metrics');
-
-ws.onmessage = function(event) {
-    const metrics = JSON.parse(event.data);
-    updateDashboard(metrics.data);
-};
-```
-
-## 🔧 Desenvolvimento
-
-### Estrutura do Projeto
-
-```
-backend/
-├── main.py                    # Entrada da aplicação
-├── requirements.txt           # Dependências
-├── Dockerfile                 # Container Docker
-│
-├── api/routes/               # Endpoints da API
-├── core/                     # Núcleo do sistema
-│   ├── ai/                   # Módulos de IA
-│   ├── config.py            # Configurações
-│   └── database.py          # Banco de dados
-├── models/                   # Modelos de dados
-└── utils/                    # Utilitários
-```
-
-### Executar em Modo Debug
-
-```bash
-export API_DEBUG=True
-python main.py
-```
-
-### Testes
-
-```bash
-# Testar endpoints principais
-curl http://localhost:8001/api/health
-curl http://localhost:8001/api/analytics/health  
-curl http://localhost:8001/api/camera/status
-```
-
-## 📊 Performance
-
-- **Processamento**: 20-50ms por frame
-- **Throughput**: 20-50 FPS
-- **Detecção YOLO**: 15-30ms
-- **Reconhecimento Facial**: 5-15ms
-
-## 🛡️ Segurança & Privacidade
-
-### Conformidade LGPD/GDPR
-- ✅ Direito ao acesso
-- ✅ Direito à retificação  
-- ✅ Direito ao esquecimento
-- ✅ Direito à portabilidade
-- ✅ Logs de auditoria
-
-### Segurança Técnica
-- 🔐 Autenticação via API Key
-- 🛡️ CORS configurado
-- 📝 Logs estruturados
-- 🔍 Validação rigorosa
-
-## 📈 Monitoramento
-
-### Métricas Coletadas
-- Performance de processamento
-- Precisão das detecções
-- Uso de recursos (CPU/memória)
-- Contadores por endpoint
-- Logs de erro detalhados
-
-### Logs
-```bash
-# Ver logs em tempo real
-tail -f logs/app.log
-
-# Filtrar erros
-grep "ERROR" logs/app.log
-```
-
-## 🚀 Deploy Produção
-
-### EasyPanel
-1. Criar projeto no EasyPanel
-2. Conectar repositório Git
-3. Configurar variáveis de ambiente
-4. Deploy automático
-
-### Docker Compose
-```yaml
-version: '3.8'
-services:
-  shopflow-backend:
-    build: .
-    ports:
-      - "8001:8001"
-    env_file:
-      - .env
-    restart: unless-stopped
-```
-
-## 🐛 Troubleshooting
-
-### Problemas Comuns
-
-**Erro de conexão Supabase:**
-```bash
-# Verificar configuração
-echo $SUPABASE_URL
-```
-
-**Modelo YOLO não encontrado:**
-```bash
-# Modelo será baixado automaticamente
-# Verifique conexão de internet
-```
-
-**Permissão negada:**
-```bash
-# Criar diretórios necessários
-mkdir -p uploads logs face_embeddings
-chmod 755 uploads logs face_embeddings
-```
-
-## 📚 Documentação Completa
-
-Para documentação detalhada, consulte:
-- **[Documentação Completa](../docs/BACKEND_DOCUMENTATION.md)** - Guia completo
-- **[API Docs](http://localhost:8001/docs)** - Documentação interativa Swagger
-- **[Redoc](http://localhost:8001/redoc)** - Documentação alternativa
-
-## 🤝 Contribuindo
-
-1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
-
-## 📄 Licença
-
-Distribuído sob a licença MIT. Veja `LICENSE` para mais informações.
-
-## 📞 Suporte
-
-- 📧 Email: suporte@shopflow.com
-- 🐛 Issues: [GitHub Issues](https://github.com/seu-usuario/shopflow-jcplussize/issues)
-- 📖 Docs: [Documentação Completa](../docs/BACKEND_DOCUMENTATION.md)
+**Configuração completa:** [SETUP.md](../SETUP.md)
 
 ---
 
-**Feito com ❤️ para revolucionar o varejo com Inteligência Artificial**
+## 📁 Estrutura
+
+```
+backend/
+├── main.py                       # App FastAPI
+├── docker-compose.yml            # Docker setup
+├── requirements.txt              # Dependências
+│
+├── api/routes/                   # Endpoints
+│   ├── camera.py
+│   ├── analytics.py
+│   └── employees.py
+│
+├── core/                         # Núcleo
+│   ├── rtsp_capture.py          # Captura RTSP
+│   ├── rtsp_processor.py        # Pipeline IA
+│   ├── detector.py              # YOLO detector
+│   ├── group_detector_simple.py # DBSCAN groups
+│   ├── database.py              # Supabase
+│   └── ai/
+│       └── face_recognition.py  # Face recognition
+```
+
+---
+
+## 🧪 Testes
+
+```bash
+# Health check
+curl http://localhost:8001/api/health
+
+# Todos endpoints
+./tests/manual/test_all_endpoints.sh
+
+# Ver logs
+docker-compose logs -f backend
+```
+
+**Guia de testes:** [docs/TESTING.md](../docs/TESTING.md)
+
+---
+
+## 📚 Documentação
+
+- **[README Principal](../README.md)** - Visão geral do projeto
+- **[SETUP.md](../SETUP.md)** - Setup e configuração
+- **[ARCHITECTURE.md](../ARCHITECTURE.md)** - Arquitetura técnica
+- **[docs/API.md](../docs/API.md)** - Referência da API
+- **[docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md)** - Deploy produção
+- **[docs/TESTING.md](../docs/TESTING.md)** - Guia de testes
+- **[docs/TROUBLESHOOTING.md](../docs/TROUBLESHOOTING.md)** - Troubleshooting
+
+---
+
+**v1.0.0** | 2025-11-09
