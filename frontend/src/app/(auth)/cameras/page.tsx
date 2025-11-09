@@ -165,7 +165,7 @@ export default function CamerasPage() {
                 <Camera className="w-16 h-16 text-neutral-600 mx-auto mb-4" />
                 <p className="text-neutral-400 text-lg">Stream pausado</p>
                 <p className="text-neutral-500 text-sm mt-2">
-                  Clique em "Retomar" para continuar
+                  Clique em &quot;Retomar&quot; para continuar
                 </p>
               </div>
             </div>
@@ -238,7 +238,7 @@ export default function CamerasPage() {
               <p>• <strong className="text-blue-400">Azul:</strong> Funcionários identificados pelo reconhecimento facial</p>
               <p>• <strong className="text-yellow-400">Amarelo:</strong> Grupos grandes (5+ pessoas)</p>
               <p className="mt-2 text-xs text-neutral-500">
-                Dica: Use o botão "Fullscreen" para visualização em tela cheia. Pressione ESC para sair.
+                Dica: Use o botão &quot;Fullscreen&quot; para visualização em tela cheia. Pressione ESC para sair.
               </p>
             </div>
           </div>
