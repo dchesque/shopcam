@@ -132,6 +132,100 @@ FACE_RECOGNITION_ENABLED=True
 
 ---
 
+## 🔒 Segurança
+
+### ⚠️ ANTES DE FAZER DEPLOY
+
+**1. NUNCA commite `.env` no Git**
+
+```bash
+# Verificar se .env está no .gitignore
+grep -r "SUPABASE_SERVICE_KEY" .env .env.* 2>/dev/null
+# Se retornar algo = PERIGO! A key está exposta.
+```
+
+**2. Configurar ENVIRONMENT corretamente**
+
+```env
+# Development (local)
+ENVIRONMENT=development
+
+# Production (deploy)
+ENVIRONMENT=production
+PRODUCTION_DOMAIN=seu-dominio.com  # SEM https://
+```
+
+**3. Validar CORS em produção**
+
+```bash
+# Testar que apenas seu domínio é permitido
+curl -v -H "Origin: https://site-malicioso.com" \
+     -X OPTIONS https://api.seu-dominio.com/api/health
+
+# Esperado: DEVE FALHAR (sem Access-Control-Allow-Origin)
+
+# Testar origem válida
+curl -v -H "Origin: https://seu-dominio.com" \
+     -X OPTIONS https://api.seu-dominio.com/api/health
+
+# Esperado: DEVE PASSAR (com Access-Control-Allow-Origin)
+```
+
+### 🔐 SUPABASE_SERVICE_KEY - Proteção Crítica
+
+A `SUPABASE_SERVICE_KEY` tem **privilégios administrativos totais**:
+
+- ✅ **USE:** Apenas no backend
+- ✅ **ARMAZENE:** Em secrets manager em produção
+- ✅ **ROTACIONE:** A cada 30-90 dias
+- ❌ **NUNCA:** Exponha no frontend
+- ❌ **NUNCA:** Commite no Git
+- ❌ **NUNCA:** Logue a key completa
+
+### 🚀 Deploy Seguro
+
+**Railway:**
+```bash
+railway variables set SUPABASE_SERVICE_KEY="sua-key-aqui"
+railway variables set ENVIRONMENT="production"
+railway variables set PRODUCTION_DOMAIN="seu-dominio.com"
+railway up
+```
+
+**Heroku:**
+```bash
+heroku config:set SUPABASE_SERVICE_KEY="sua-key-aqui"
+heroku config:set ENVIRONMENT="production"
+heroku config:set PRODUCTION_DOMAIN="seu-dominio.com"
+git push heroku main
+```
+
+**Docker:**
+```yaml
+# docker-compose.yml
+environment:
+  - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+  - ENVIRONMENT=production
+  - PRODUCTION_DOMAIN=seu-dominio.com
+```
+
+### ✅ Checklist de Produção
+
+- [ ] `SUPABASE_SERVICE_KEY` em secrets (não em .env commitado)
+- [ ] `ENVIRONMENT=production`
+- [ ] `PRODUCTION_DOMAIN` configurado
+- [ ] CORS restrito ao domínio de produção
+- [ ] RLS (Row Level Security) habilitado no Supabase
+- [ ] Service key rotacionada nos últimos 90 dias
+- [ ] HTTPS obrigatório
+- [ ] Logs estruturados habilitados
+- [ ] Monitoramento configurado
+- [ ] Backup do banco configurado
+
+**Guia completo:** [SECURITY.md](./SECURITY.md)
+
+---
+
 ## 📁 Estrutura
 
 ```
