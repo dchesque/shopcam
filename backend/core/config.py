@@ -17,10 +17,7 @@ class Settings(BaseSettings):
     API_PORT: int = 8001
     API_DEBUG: bool = False
     API_SECRET_KEY: str = "secret-key-change-me"
-    
-    # Bridge API
-    BRIDGE_API_KEY: str = "bridge_api_key_123"
-    
+
     # YOLO/AI
     YOLO_MODEL: str = "yolo11n.pt"
     YOLO_CONFIDENCE: float = 0.6

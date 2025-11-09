@@ -24,8 +24,6 @@ backend/.env.staging
 frontend/.env.local
 frontend/.env.production
 frontend/.env.staging
-bridge/.env
-bridge/config.ini
 
 # Chaves e certificados
 *.pem
@@ -257,10 +255,6 @@ pip-delete-this-directory.txt
 # ============================================================================
 # 🚫 CUSTOM IGNORES - ShopFlow específicos
 # ============================================================================
-# Bridge executáveis Windows
-bridge/*.exe
-bridge/*.bat.backup
-
 # Arquivos de teste locais
 test_*.py
 test_*.js
@@ -277,7 +271,6 @@ db_backup/
 !.env.example
 !backend/.env.example
 !frontend/.env.example
-!bridge/config.ini.example
 
 # Dockerfiles de exemplo
 !Dockerfile*

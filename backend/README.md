@@ -65,18 +65,17 @@ curl http://localhost:8001/api/health
 
 ```mermaid
 graph TB
-    A[📹 Câmera] --> B[🎥 Bridge]
-    B --> C[📡 FastAPI]
+    A[📹 Câmera RTSP] --> C[📡 FastAPI + RTSP Processor]
     C --> D[🧠 Smart Analytics Engine]
-    
+
     D --> E[👤 Face Recognition]
-    D --> F[🎭 Behavior Analyzer]  
+    D --> F[🎭 Behavior Analyzer]
     D --> G[🎯 Customer Segmentation]
     D --> H[🔮 Predictive Insights]
-    
+
     C --> I[🗄️ Supabase]
-    C --> J[🔄 WebSocket]
-    
+    C --> J[🔄 MJPEG Stream]
+
     E --> K[🔒 Privacy Manager]
     F --> K
     G --> K
@@ -90,7 +89,8 @@ graph TB
 - `GET /docs` - Documentação interativa (Swagger)
 
 ### 🎥 Câmera
-- `POST /api/camera/process` - Processar frame com IA
+- `GET /api/camera/stream` - Stream MJPEG ao vivo com detecções
+- `GET /api/camera/stats` - Estatísticas da câmera
 - `GET /api/camera/status` - Status dos serviços de câmera
 
 ### 📈 Analytics
@@ -123,8 +123,8 @@ SUPABASE_SERVICE_KEY=sua-service-key
 API_HOST=0.0.0.0
 API_PORT=8001
 
-# Segurança
-BRIDGE_API_KEY=sua-chave-segura-aqui
+# Câmera RTSP
+CAMERA_RTSP_URL=rtsp://admin:senha@IP:554/stream
 
 # IA (opcional - valores padrão funcionam)
 YOLO_MODEL=yolo11n.pt
