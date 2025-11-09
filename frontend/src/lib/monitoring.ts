@@ -1,4 +1,5 @@
-import * as Sentry from '@sentry/nextjs';
+// Monitoring utilities without Sentry dependency
+// Simple logging for development and production
 
 export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical';
 
@@ -13,35 +14,17 @@ export interface CustomError {
  * Log an error with additional context
  */
 export function logError(error: Error | string | CustomError, extra?: Record<string, any>) {
-  const isProduction = process.env.NODE_ENV === 'production';
-  
-  if (!isProduction) {
-    console.error('Error:', error, extra);
-    return;
-  }
-
   if (typeof error === 'string') {
-    Sentry.captureMessage(error, 'error');
+    console.error('[Error]', error, extra);
   } else if (error instanceof Error) {
-    Sentry.captureException(error);
+    console.error('[Error]', error.message, error.stack, extra);
   } else {
     // CustomError
-    Sentry.withScope((scope) => {
-      if (error.context) {
-        scope.setContext('custom_context', error.context);
-      }
-      if (error.tags) {
-        Object.entries(error.tags).forEach(([key, value]) => {
-          scope.setTag(key, value);
-        });
-      }
-      if (error.severity) {
-        scope.setLevel(error.severity as any);
-      }
-      if (extra) {
-        scope.setContext('extra', extra);
-      }
-      Sentry.captureMessage(error.message, 'error');
+    console.error('[Error]', error.message, {
+      severity: error.severity,
+      context: error.context,
+      tags: error.tags,
+      extra,
     });
   }
 }
@@ -50,39 +33,14 @@ export function logError(error: Error | string | CustomError, extra?: Record<str
  * Log a warning
  */
 export function logWarning(message: string, context?: Record<string, any>) {
-  const isProduction = process.env.NODE_ENV === 'production';
-  
-  if (!isProduction) {
-    console.warn('Warning:', message, context);
-    return;
-  }
-
-  Sentry.withScope((scope) => {
-    if (context) {
-      scope.setContext('warning_context', context);
-    }
-    scope.setLevel('warning');
-    Sentry.captureMessage(message, 'warning');
-  });
+  console.warn('[Warning]', message, context);
 }
 
 /**
  * Track a custom event
  */
 export function trackEvent(eventName: string, properties?: Record<string, any>) {
-  const isProduction = process.env.NODE_ENV === 'production';
-  
-  if (!isProduction) {
-    console.log('Event:', eventName, properties);
-    return;
-  }
-
-  Sentry.addBreadcrumb({
-    message: eventName,
-    category: 'custom',
-    level: 'info',
-    data: properties,
-  });
+  console.log('[Event]', eventName, properties);
 }
 
 /**
@@ -93,52 +51,57 @@ export function setUserContext(user: {
   email?: string;
   username?: string;
 }) {
-  Sentry.setUser(user);
+  console.log('[User Context]', user);
 }
 
 /**
  * Clear user context
  */
 export function clearUserContext() {
-  Sentry.setUser(null);
+  console.log('[User Context] Cleared');
 }
 
 /**
  * Performance monitoring
  */
 export function startTransaction(name: string, operation: string = 'navigation') {
-  return Sentry.startSpan({ name, op: operation }, () => {});
+  const startTime = performance.now();
+  console.log(`[Transaction Start] ${name} (${operation})`);
+
+  return {
+    finish: () => {
+      const duration = performance.now() - startTime;
+      console.log(`[Transaction End] ${name} - ${duration.toFixed(2)}ms`);
+    }
+  };
 }
 
 /**
  * API call monitoring
  */
-export function monitorApiCall<T>(
+export async function monitorApiCall<T>(
   apiCall: () => Promise<T>,
   endpoint: string
 ): Promise<T> {
-  return Sentry.startSpan(
-    {
-      name: `API ${endpoint}`,
-      op: 'http.client',
-    },
-    async () => {
-      try {
-        const result = await apiCall();
-        Sentry.setTag('api.status', 'success');
-        return result;
-      } catch (error) {
-        Sentry.setTag('api.status', 'error');
-        logError({
-          message: `API call failed: ${endpoint}`,
-          context: { endpoint, error: error instanceof Error ? error.message : 'Unknown error' },
-          severity: 'medium',
-          tags: { component: 'api' },
-        });
-        throw error;
-      }
-    }
-  );
+  const startTime = performance.now();
+  console.log(`[API Call] ${endpoint}`);
+
+  try {
+    const result = await apiCall();
+    const duration = performance.now() - startTime;
+    console.log(`[API Success] ${endpoint} - ${duration.toFixed(2)}ms`);
+    return result;
+  } catch (error) {
+    const duration = performance.now() - startTime;
+    console.error(`[API Error] ${endpoint} - ${duration.toFixed(2)}ms`, error);
+    logError({
+      message: `API call failed: ${endpoint}`,
+      context: { endpoint, error: error instanceof Error ? error.message : 'Unknown error' },
+      severity: 'medium',
+      tags: { component: 'api' },
+    });
+    throw error;
+  }
 }
 
 /**
@@ -148,10 +111,5 @@ export function captureComponentError(
   error: Error,
   errorInfo: { componentStack: string }
 ) {
-  Sentry.withScope((scope) => {
-    scope.setTag('errorBoundary', true);
-    scope.setContext('componentStack', errorInfo);
-    scope.setLevel('error');
-    Sentry.captureException(error);
-  });
+  console.error('[Component Error]', error, errorInfo);
 }
