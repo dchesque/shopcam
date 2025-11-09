@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  # =============================================================================
+  # Backend Service (FastAPI + AI/ML)
+  # =============================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - SUPABASE_URL=${SUPABASE_URL}
+        - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+        - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+        - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-key}
+        - BRIDGE_API_KEY=${BRIDGE_API_KEY}
+    container_name: shopflow-backend
+    ports:
+      - "8001:3333"
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=3333
+      - NODE_ENV=production
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - CAMERA_RTSP_URL=${CAMERA_RTSP_URL:-rtsp://admin:password@192.168.1.100:554/stream}
+      - CAMERA_FPS_PROCESS=${CAMERA_FPS_PROCESS:-5}
+      - YOLO_MODEL=${YOLO_MODEL:-yolo11n.pt}
+      - YOLO_CONFIDENCE=${YOLO_CONFIDENCE:-0.5}
+      - FACE_RECOGNITION_ENABLED=${FACE_RECOGNITION_ENABLED:-false}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - PRODUCTION_DOMAIN=${PRODUCTION_DOMAIN:-shopflow.com}
+    volumes:
+      - backend-logs:/app/logs
+      - backend-uploads:/app/uploads
+      - backend-face-embeddings:/app/face_embeddings
+      - backend-cache:/app/cache
+    restart: unless-stopped
+    networks:
+      - shopflow-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # =============================================================================
+  # Frontend Service (Next.js)
+  # =============================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://backend:3333}
+        - NEXT_PUBLIC_BRIDGE_URL=${NEXT_PUBLIC_BRIDGE_URL:-http://backend:3333}
+        - NEXT_PUBLIC_BRIDGE_API_KEY=${BRIDGE_API_KEY}
+        - NODE_ENV=production
+    container_name: shopflow-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_API_URL=http://backend:3333
+      - NEXT_PUBLIC_BRIDGE_URL=http://backend:3333
+      - NEXT_PUBLIC_BRIDGE_API_KEY=${BRIDGE_API_KEY}
+      - PORT=3000
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - shopflow-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  backend-logs:
+    driver: local
+  backend-uploads:
+    driver: local
+  backend-face-embeddings:
+    driver: local
+  backend-cache:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  shopflow-network:
+    driver: bridge
