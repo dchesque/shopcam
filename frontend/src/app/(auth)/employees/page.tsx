@@ -14,6 +14,7 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react'
+import { getEmployeesApiUrl } from '@/lib/api/url-helper'
 
 // ============================================
 // MVP EMPLOYEES PAGE - SIMPLIFICADO
@@ -44,12 +45,10 @@ export default function EmployeesPage() {
   const [preview, setPreview] = React.useState<string | null>(null)
   const [message, setMessage] = React.useState<{ type: 'success' | 'error', text: string } | null>(null)
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
-
   // Fetch employees
   const fetchEmployees = React.useCallback(async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/employees/list`)
+      const response = await fetch(getEmployeesApiUrl('list'))
       if (response.ok) {
         const data = await response.json()
         setEmployees(data.employees || [])
@@ -59,7 +58,7 @@ export default function EmployeesPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [apiUrl])
+  }, [])
 
   React.useEffect(() => {
     fetchEmployees()
@@ -100,7 +99,7 @@ export default function EmployeesPage() {
       if (department) formData.append('department', department)
       if (position) formData.append('position', position)
 
-      const response = await fetch(`${apiUrl}/api/employees/register`, {
+      const response = await fetch(getEmployeesApiUrl('register'), {
         method: 'POST',
         body: formData
       })
@@ -141,7 +140,7 @@ export default function EmployeesPage() {
     if (!confirm(`Tem certeza que deseja remover ${employeeName}?`)) return
 
     try {
-      const response = await fetch(`${apiUrl}/api/employees/${employeeId}`, {
+      const response = await fetch(getEmployeesApiUrl('delete', employeeId), {
         method: 'DELETE'
       })
 

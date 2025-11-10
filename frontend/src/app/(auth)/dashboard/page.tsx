@@ -22,6 +22,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts'
+import { getCameraStreamUrl } from '@/lib/api/url-helper'
 
 // ============================================
 // MVP DASHBOARD - SIMPLIFICADO
@@ -241,14 +242,14 @@ export default function DashboardPage() {
         {/* Preview do Stream MJPEG */}
         <div className="relative bg-neutral-800/30 rounded-lg overflow-hidden aspect-video">
           <Image
-            src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/camera/stream`}
+            src={getCameraStreamUrl()}
             alt="Camera stream"
             fill
             className="object-contain"
             unoptimized
             onError={(e) => {
               // Fallback se stream não estiver disponível
-              e.currentTarget.src = '/placeholder-camera.png'
+              e.currentTarget.src = '/placeholder-camera.svg'
             }}
           />
 

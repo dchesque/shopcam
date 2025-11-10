@@ -13,6 +13,7 @@ import {
   Maximize2,
   Minimize2
 } from 'lucide-react'
+import { getCameraStreamUrl } from '@/lib/api/url-helper'
 
 // ============================================
 // MVP CAMERA PAGE - SIMPLIFICADO
@@ -24,8 +25,7 @@ export default function CamerasPage() {
   const [streamKey, setStreamKey] = React.useState(0)
   const containerRef = React.useRef<HTMLDivElement>(null)
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
-  const streamUrl = `${apiUrl}/api/camera/stream?t=${streamKey}`
+  const streamUrl = getCameraStreamUrl(undefined, { t: streamKey.toString() })
 
   // Handle snapshot download
   const handleSnapshot = () => {
