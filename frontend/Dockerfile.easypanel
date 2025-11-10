@@ -1,20 +1,16 @@
-# Multi-stage build para otimização
-FROM node:20-alpine AS deps
+# Build simples sem multi-stage para resolver problema do Easypanel
+FROM node:20-alpine
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copiar arquivos de dependências
-COPY package.json package-lock.json ./
-RUN npm ci --only=production && \
-    npm cache clean --force
-
-# Stage de build
-FROM node:20-alpine AS builder
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
+# Criar usuário não-root
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
 
 # Copiar arquivos de dependências
 COPY package.json package-lock.json ./
+
+# Instalar todas as dependências
 RUN npm ci && \
     npm cache clean --force
 
@@ -37,22 +33,8 @@ ENV NODE_ENV=production
 # Build da aplicação
 RUN npm run build
 
-# Stage de produção
-FROM node:20-alpine AS runner
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-
-# Criar usuário não-root
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001
-
-# Copiar node_modules de produção
-COPY --from=deps /app/node_modules ./node_modules
-
-# Copiar arquivos necessários
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/package.json ./package.json
+# Remover devDependencies após o build
+RUN npm prune --production
 
 # Configurar permissões
 RUN chown -R nextjs:nodejs /app
