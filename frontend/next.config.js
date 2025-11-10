@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Output standalone para Docker
-  output: 'standalone',
+  // Output padrão (não usar standalone com npm start)
+  // output: 'standalone',
   
   // React strict mode
   reactStrictMode: true,

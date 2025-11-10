@@ -41,11 +41,14 @@ RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 
-# Variáveis de ambiente runtime
+# Variáveis de ambiente runtime (forçar production)
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+
+# Garantir que NODE_ENV seja production independente do build arg
+RUN export NODE_ENV=production
 
 EXPOSE 3000
 
