@@ -62,11 +62,20 @@ class SmartAnalyticsEngine:
     Coordena todos os módulos de inteligência artificial
     """
     
-    def __init__(self, enable_face_recognition: bool = True):
+    def __init__(
+        self,
+        enable_face_recognition: bool = True,
+        enable_behavior_analyzer: bool = False,
+        enable_customer_segmentation: bool = False,
+        enable_predictive_insights: bool = False
+    ):
         self.enabled = True
         self.enable_face_recognition = enable_face_recognition
-        
-        # Inicializar módulos
+        self.enable_behavior_analyzer = enable_behavior_analyzer
+        self.enable_customer_segmentation = enable_customer_segmentation
+        self.enable_predictive_insights = enable_predictive_insights
+
+        # Inicializar módulos (apenas se habilitados)
         self.face_manager = None
         self.behavior_analyzer = None
         self.segmentation = None
@@ -81,30 +90,48 @@ class SmartAnalyticsEngine:
         logger.info("🧠 Smart Analytics Engine inicializado")
     
     async def initialize(self):
-        """Inicializar todos os módulos de IA"""
+        """Inicializar módulos de IA habilitados"""
         try:
-            # Face Recognition
+            # Face Recognition (se habilitado)
             if self.enable_face_recognition:
                 self.face_manager = FaceRecognitionManager()
                 await self.face_manager.initialize()
                 await self.face_manager.load_employee_faces()
-            
-            # Behavior Analysis
-            self.behavior_analyzer = BehaviorAnalyzer()
-            await self.behavior_analyzer.initialize()
-            
-            # Customer Segmentation
-            self.segmentation = CustomerSegmentation()
-            await self.segmentation.initialize()
-            
-            # Predictive Insights
-            self.predictive = PredictiveEngine()
-            await self.predictive.initialize()
-            
-            # Privacy Manager
+                logger.info("✅ Face Recognition inicializado")
+
+            # Behavior Analysis (se habilitado)
+            if self.enable_behavior_analyzer:
+                self.behavior_analyzer = BehaviorAnalyzer()
+                await self.behavior_analyzer.initialize()
+                logger.info("✅ Behavior Analyzer inicializado")
+
+            # Customer Segmentation (se habilitado)
+            if self.enable_customer_segmentation:
+                self.segmentation = CustomerSegmentation()
+                await self.segmentation.initialize()
+                logger.info("✅ Customer Segmentation inicializado")
+
+            # Predictive Insights (se habilitado)
+            if self.enable_predictive_insights:
+                self.predictive = PredictiveEngine()
+                await self.predictive.initialize()
+                logger.info("✅ Predictive Insights inicializado")
+
+            # Privacy Manager (sempre inicializar)
             self.privacy = PrivacyManager()
-            
-            logger.success("✅ Todos os módulos de IA inicializados")
+
+            # Log dos módulos habilitados
+            enabled_modules = []
+            if self.enable_face_recognition:
+                enabled_modules.append("Face Recognition")
+            if self.enable_behavior_analyzer:
+                enabled_modules.append("Behavior Analyzer")
+            if self.enable_customer_segmentation:
+                enabled_modules.append("Customer Segmentation")
+            if self.enable_predictive_insights:
+                enabled_modules.append("Predictive Insights")
+
+            logger.success(f"✅ Módulos de IA inicializados: {', '.join(enabled_modules) if enabled_modules else 'Nenhum (MVP mode)'}")
             
         except Exception as e:
             logger.error(f"❌ Erro ao inicializar IA: {e}")
@@ -131,23 +158,29 @@ class SmartAnalyticsEngine:
         # 1. Identificar pessoas (funcionários vs clientes)
         person_types = await self._identify_people(frame, detections)
         
-        # 2. Analisar comportamento
-        behavior_data = await self.behavior_analyzer.analyze(
-            detections, person_types, timestamp
-        )
-        
-        # 3. Segmentar clientes
-        segments = await self.segmentation.segment_customers(
-            self.person_registry, behavior_data
-        )
-        
-        # 4. Gerar predições
-        historical_data = await self._get_historical_data()
-        predictions = await self.predictive.generate_predictions(
-            historical_data=historical_data,
-            current_state=behavior_data,
-            timestamp=timestamp
-        )
+        # 2. Analisar comportamento (se habilitado)
+        behavior_data = {}
+        if self.behavior_analyzer:
+            behavior_data = await self.behavior_analyzer.analyze(
+                detections, person_types, timestamp
+            )
+
+        # 3. Segmentar clientes (se habilitado)
+        segments = {}
+        if self.segmentation:
+            segments = await self.segmentation.segment_customers(
+                self.person_registry, behavior_data
+            )
+
+        # 4. Gerar predições (se habilitado)
+        predictions = {}
+        if self.predictive:
+            historical_data = await self._get_historical_data()
+            predictions = await self.predictive.generate_predictions(
+                historical_data=historical_data,
+                current_state=behavior_data,
+                timestamp=timestamp
+            )
         
         # 5. Detectar anomalias
         anomalies = await self._detect_anomalies(behavior_data)
