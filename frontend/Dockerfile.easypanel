@@ -46,10 +46,13 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
+# Copiar node_modules de produção
+COPY --from=deps /app/node_modules ./node_modules
+
 # Copiar arquivos necessários
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/package.json ./package.json
 
 # Configurar permissões
 RUN chown -R nextjs:nodejs /app
@@ -68,4 +71,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
 
-CMD ["node", "server.js"]
+CMD ["npm", "start"]
