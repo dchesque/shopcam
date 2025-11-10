@@ -38,23 +38,23 @@ const nextConfig = {
   // Pacotes externos do servidor (movido de experimental)
   serverExternalPackages: ['@node-rs/argon2', '@node-rs/bcrypt'],
   
+  // Typed routes configuration (moved from experimental)
+  typedRoutes: false,
+
+  // Turbopack configuration (moved from experimental.turbo)
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
+      },
+    },
+  },
+
   // Experimental features
   experimental: {
     // Otimização de imports
     optimizePackageImports: ['lucide-react', 'recharts', '@tanstack/react-query'],
-    // Turbopack optimizations
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
-    // Faster compilation
-    useDeploymentId: false,
-    // Faster builds
-    typedRoutes: false,
   },
   
   // Configuração do Webpack

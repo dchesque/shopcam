@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -239,10 +240,12 @@ export default function DashboardPage() {
 
         {/* Preview do Stream MJPEG */}
         <div className="relative bg-neutral-800/30 rounded-lg overflow-hidden aspect-video">
-          <img
+          <Image
             src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/camera/stream`}
             alt="Camera stream"
-            className="w-full h-full object-contain"
+            fill
+            className="object-contain"
+            unoptimized
             onError={(e) => {
               // Fallback se stream não estiver disponível
               e.currentTarget.src = '/placeholder-camera.png'

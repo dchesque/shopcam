@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -411,11 +412,12 @@ export default function EmployeesPage() {
                       />
                     </label>
                   ) : (
-                    <div className="relative">
-                      <img
+                    <div className="relative h-64">
+                      <Image
                         src={preview}
                         alt="Preview"
-                        className="w-full h-64 object-cover rounded-lg"
+                        fill
+                        className="object-cover rounded-lg"
                       />
                       <Button
                         type="button"

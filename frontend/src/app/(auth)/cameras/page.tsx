@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
@@ -149,11 +150,13 @@ export default function CamerasPage() {
         {/* Stream MJPEG */}
         <div className="relative bg-neutral-800/30 aspect-video">
           {!isPaused ? (
-            <img
+            <Image
               key={streamKey}
               src={streamUrl}
               alt="Camera stream"
-              className="w-full h-full object-contain"
+              fill
+              className="object-contain"
+              unoptimized
               onError={(e) => {
                 // Fallback se stream não estiver disponível
                 console.error('Stream error')

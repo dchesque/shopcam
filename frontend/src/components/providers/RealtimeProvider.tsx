@@ -358,7 +358,7 @@ export function useRealtimeChannel(
       setChannel(null)
       setIsSubscribed(false)
     }
-  }, [channelName, subscribe, unsubscribe, config])
+  }, [channelName, subscribe, unsubscribe, config, events.onBroadcast, events.onPresence, events.onInsert, events.onUpdate, events.onDelete])
 
   return {
     channel,
