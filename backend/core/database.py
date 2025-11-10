@@ -56,12 +56,32 @@ class SupabaseManager:
                     )
                 logger.info("✅ Validação de ambiente de produção: OK")
 
-            # Criar cliente Supabase
-            self.client = create_client(self.url, self.key)
+            # Criar cliente Supabase com retry e backoff exponencial
+            import time
+            max_retries = 3
+            retry_count = 0
 
-            # Testar conexão básica
-            logger.info("✅ Conexão com Supabase estabelecida")
-            return True
+            while retry_count < max_retries:
+                try:
+                    # Criar cliente sem proxy (não suportado na versão atual)
+                    self.client = create_client(self.url, self.key)
+
+                    # Testar conexão básica
+                    logger.info("✅ Conexão com Supabase estabelecida")
+                    return True
+
+                except Exception as conn_error:
+                    retry_count += 1
+                    if retry_count >= max_retries:
+                        logger.error(f"❌ Supabase connection failed after {max_retries} attempts [CODE:SUPABASE_MAX_RETRIES]: {conn_error}")
+                        raise conn_error
+
+                    # Backoff exponencial: 2^n segundos
+                    wait_time = 2 ** retry_count
+                    logger.warning(f"⚠️ Tentativa {retry_count}/{max_retries} falhou [CODE:SUPABASE_RETRY]. Aguardando {wait_time}s... Error: {conn_error}")
+                    time.sleep(wait_time)
+
+            return False
 
         except ValueError as e:
             # Erros de validação são críticos - não permitir continuar
@@ -69,9 +89,9 @@ class SupabaseManager:
             raise
 
         except Exception as e:
-            logger.error(f"❌ Erro ao conectar Supabase: {e}")
+            logger.error(f"❌ Erro ao conectar Supabase [CODE:SUPABASE_INIT_ERROR]: {e}")
             # Permitir que o sistema funcione sem Supabase se necessário
-            logger.warning("⚠️ Sistema funcionando em modo offline (sem banco)")
+            logger.warning("⚠️ Sistema funcionando em modo offline (sem banco) [CODE:OFFLINE_MODE]")
             return False
     
     async def close(self):

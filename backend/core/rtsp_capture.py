@@ -139,13 +139,15 @@ class RTSPCameraManager:
 
             # Verificar se conseguiu abrir
             if not self.capture.isOpened():
-                logger.error("Failed to open RTSP stream")
+                sanitized_url = self._sanitize_url(self.rtsp_url)
+                logger.error(f"Failed to open RTSP stream [CODE:RTSP_OPEN_FAILED] - URL: {sanitized_url}")
                 return False
 
             # Testar leitura de um frame
             ret, frame = self.capture.read()
             if not ret or frame is None:
-                logger.error("Failed to read test frame from RTSP stream")
+                sanitized_url = self._sanitize_url(self.rtsp_url)
+                logger.error(f"Failed to read test frame from RTSP stream [CODE:RTSP_READ_FAILED] - URL: {sanitized_url}")
                 self.capture.release()
                 return False
 
@@ -161,7 +163,8 @@ class RTSPCameraManager:
             return True
 
         except Exception as e:
-            logger.error(f"Error connecting to RTSP camera: {e}")
+            sanitized_url = self._sanitize_url(self.rtsp_url)
+            logger.error(f"Error connecting to RTSP camera [CODE:RTSP_EXCEPTION] - URL: {sanitized_url}, Error: {e}")
             self.stats.is_connected = False
             return False
 
@@ -228,7 +231,7 @@ class RTSPCameraManager:
                     fps_start_time = current_time
 
             except Exception as e:
-                logger.error(f"Error in capture loop: {e}")
+                logger.error(f"Error in capture loop [CODE:CAPTURE_LOOP_ERROR] - Error: {e}, FPS: {self.stats.fps_received:.1f}")
                 time.sleep(1)
 
         logger.info("Capture loop stopped")

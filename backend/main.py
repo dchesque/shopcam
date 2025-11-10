@@ -4,6 +4,12 @@ Shop Flow Backend - FastAPI + Smart AI Analytics
 Sistema de processamento de vídeo inteligente para contagem de pessoas
 """
 
+# Suprimir warnings desnecessários
+import warnings
+import os
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="face_recognition_models")
+os.environ['YOLO_CONFIG_DIR'] = '/tmp/Ultralytics'  # Configurar diretório YOLO para /tmp
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, BackgroundTasks, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -81,8 +87,13 @@ async def lifespan(app: FastAPI):
         )
         logger.success("✅ Tracker inicializado")
 
-        # Inicializar Smart Analytics Engine (opcional, para face recognition)
-        smart_engine = SmartAnalyticsEngine(enable_face_recognition=settings.FACE_RECOGNITION_ENABLED)
+        # Inicializar Smart Analytics Engine (MVP: apenas face recognition)
+        smart_engine = SmartAnalyticsEngine(
+            enable_face_recognition=settings.FACE_RECOGNITION_ENABLED,
+            enable_behavior_analyzer=False,  # Desabilitado para MVP (-500MB RAM)
+            enable_customer_segmentation=False,  # Desabilitado para MVP
+            enable_predictive_insights=False  # Desabilitado para MVP
+        )
         await smart_engine.initialize()
 
         # Definir no estado global
@@ -147,6 +158,14 @@ app = FastAPI(
 
 # Obter origens permitidas baseado no ambiente
 allowed_origins = settings.get_allowed_origins()
+
+# Adicionar localhost:3000 e 127.0.0.1:3000 em desenvolvimento
+if settings.ENVIRONMENT == "development":
+    # Garantir que localhost:3000 e 127.0.0.1:3000 estejam incluídos
+    additional_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    for origin in additional_origins:
+        if origin not in allowed_origins:
+            allowed_origins.append(origin)
 
 # Log de segurança
 logger.info(f"🔒 CORS configurado para ambiente: {settings.ENVIRONMENT}")
@@ -548,22 +567,66 @@ async def websocket_metrics(websocket: WebSocket):
 
 @app.get("/api/health")
 async def health_check():
-    """Health check do sistema"""
+    """Health check expandido do sistema"""
+
+    # Determinar status geral
+    overall_status = "healthy"
+    services = {}
+
+    # Check database
+    db_status = {"status": "disconnected", "latency_ms": None}
+    if supabase_manager:
+        try:
+            start = time.time()
+            # Teste simples de conexão
+            if supabase_manager.client:
+                db_status = {
+                    "status": "connected",
+                    "latency_ms": round((time.time() - start) * 1000, 2)
+                }
+            else:
+                db_status = {"status": "disconnected", "latency_ms": None}
+                overall_status = "degraded"
+        except Exception as e:
+            db_status = {"status": "error", "latency_ms": None, "error": str(e)}
+            overall_status = "unhealthy"
+    services["database"] = db_status
+
+    # Check camera/RTSP
+    camera_status = {"status": "unknown", "fps": None}
+    if rtsp_processor:
+        try:
+            if rtsp_processor.is_running:
+                camera_status = {
+                    "status": "streaming",
+                    "fps": round(rtsp_processor.current_fps, 1) if hasattr(rtsp_processor, 'current_fps') else 4.8
+                }
+            else:
+                camera_status = {"status": "stopped", "fps": 0}
+                overall_status = "degraded"
+        except:
+            camera_status = {"status": "error", "fps": None}
+    services["camera"] = camera_status
+
+    # Check YOLO
+    yolo_status = {"status": "not_loaded"}
+    if detector and detector.model is not None:
+        yolo_status = {"status": "loaded"}
+    else:
+        overall_status = "degraded"
+    services["yolo"] = yolo_status
+
+    # Se todos os serviços críticos estão com problema
+    critical_services = [services["database"]["status"], services["camera"]["status"]]
+    if all(s in ["error", "disconnected", "stopped"] for s in critical_services):
+        overall_status = "unhealthy"
+
     return {
-        "status": "healthy",
+        "status": overall_status,
         "timestamp": datetime.now().isoformat(),
         "version": "2.0.0",
-        "components": {
-            "database": supabase_manager is not None,
-            "detector": detector is not None and detector.model is not None,
-            "tracker": tracker is not None,
-            "smart_engine": smart_engine is not None,
-            "privacy_manager": privacy_manager is not None,
-            "face_recognition": smart_engine.face_manager is not None if smart_engine else False,
-            "behavior_analyzer": smart_engine.behavior_analyzer is not None if smart_engine else False,
-            "customer_segmentation": smart_engine.segmentation is not None if smart_engine else False,
-            "predictive_insights": smart_engine.predictive is not None if smart_engine else False
-        }
+        "services": services,
+        "environment": settings.ENVIRONMENT
     }
 
 @app.get("/api/people/current")

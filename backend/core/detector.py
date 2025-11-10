@@ -2,6 +2,10 @@
 Detector de pessoas usando YOLO11
 """
 
+import os
+# Configurar diretório YOLO antes da importação
+os.environ['YOLO_CONFIG_DIR'] = '/tmp/Ultralytics'
+
 import cv2
 import numpy as np
 from ultralytics import YOLO
