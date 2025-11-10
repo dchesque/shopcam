@@ -22,7 +22,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts'
-import { getCameraStreamUrl } from '@/lib/api/url-helper'
+import { getCameraStreamUrl, buildApiUrl } from '@/lib/api/url-helper'
 
 // ============================================
 // MVP DASHBOARD - SIMPLIFICADO
@@ -44,8 +44,7 @@ export default function DashboardPage() {
   const fetchMetrics = React.useCallback(async () => {
     try {
       // Buscar métricas do backend
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
-      const response = await fetch(`${apiUrl}/api/analytics/metrics`)
+      const response = await fetch(buildApiUrl('/api/analytics/metrics'))
       if (response.ok) {
         const data = await response.json()
 
@@ -69,8 +68,7 @@ export default function DashboardPage() {
   const fetchChartData = React.useCallback(async () => {
     try {
       // Buscar dados históricos
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
-      const response = await fetch(`${apiUrl}/api/analytics/history?hours=24`)
+      const response = await fetch(buildApiUrl('/api/analytics/history', { hours: '24' }))
       if (response.ok) {
         const data = await response.json()
 
