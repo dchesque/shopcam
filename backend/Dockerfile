@@ -1,7 +1,7 @@
 # =============================================================================
-# ShopFlow Backend - Dockerfile Otimizado e Funcional
-# Versão: 2.0 MVP
-# Última atualização: 2025-11-10
+# ShopFlow Backend - Dockerfile CORRIGIDO para Debian Trixie
+# Versão: 2.1 MVP - FIX: Removido libatlas-base-dev (não existe no Trixie)
+# Data: 2025-11-11
 # =============================================================================
 
 # =============================================================================
@@ -12,7 +12,7 @@ FROM python:3.11-slim AS builder
 # Variáveis de build
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Instalar dependências de build (incluindo CMAKE para dlib)
+# Instalar dependências de build (SEM libatlas-base-dev - não existe no Trixie)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Build essentials
     build-essential \
@@ -24,11 +24,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     # OpenCV dependencies
     libopencv-dev \
-    # Dlib/face_recognition dependencies
+    # Dlib/face_recognition dependencies (SEM libatlas-base-dev)
     libopenblas-dev \
     liblapack-dev \
     libx11-dev \
-    libatlas-base-dev \
+    libblas-dev \
     # Limpeza
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
@@ -48,7 +48,7 @@ RUN pip install --no-cache-dir cmake==3.28.0 && \
     pip install --no-cache-dir dlib==19.24.2 && \
     pip install --no-cache-dir face-recognition==1.3.0 face-recognition-models
 
-# Instalar PyTorch e torchvision (versões específicas)
+# Instalar PyTorch e torchvision (versões específicas CPU-only)
 RUN pip install --no-cache-dir \
     torch==2.1.0 \
     torchvision==0.16.0 \
@@ -58,7 +58,7 @@ RUN pip install --no-cache-dir \
 RUN grep -v "^dlib" /tmp/requirements.txt | \
     grep -v "^face-recognition" | \
     grep -v "^torch" | \
-    grep -v "^torchvision" > /tmp/requirements_clean.txt
+    grep -v "^torchvision" > /tmp/requirements_clean.txt || cp /tmp/requirements.txt /tmp/requirements_clean.txt
 
 # Instalar resto das dependências
 RUN pip install --no-cache-dir -r /tmp/requirements_clean.txt
@@ -73,10 +73,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # Metadata
 LABEL maintainer="ShopFlow <driano@shopflow.ai>"
-LABEL version="2.0-mvp"
-LABEL description="ShopFlow Backend - AI-powered retail analytics"
+LABEL version="2.1-mvp-fix"
+LABEL description="ShopFlow Backend - AI-powered retail analytics (Debian Trixie compatible)"
 
-# Instalar apenas runtime dependencies (sem build tools)
+# Instalar apenas runtime dependencies (SEM libatlas-base-dev - NÃO EXISTE NO TRIXIE!)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # OpenCV runtime
     libgl1 \
@@ -85,12 +85,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libxrender1 \
     libgomp1 \
-    # Dlib/NumPy runtime
+    # Dlib/NumPy runtime (substituir libatlas por libopenblas que é o backend)
     libgfortran5 \
     libopenblas0 \
     liblapack3 \
     libx11-6 \
-    libatlas-base-dev \
+    libblas3 \
     # FFmpeg para RTSP
     ffmpeg \
     libavcodec-extra \
