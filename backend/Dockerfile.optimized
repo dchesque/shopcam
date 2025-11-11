@@ -1,0 +1,103 @@
+# Multi-stage build para ShopFlow com TODAS as dependências
+FROM python:3.11-slim AS builder
+
+# Instalar CMake atualizado e dependências de build
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    wget \
+    pkg-config \
+    gcc \
+    g++ \
+    libopenblas-dev \
+    liblapack-dev \
+    libx11-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar CMake 3.28+ (necessário para dlib)
+RUN wget -q https://github.com/Kitware/CMake/releases/download/v3.28.0/cmake-3.28.0-linux-x86_64.tar.gz && \
+    tar -xzf cmake-3.28.0-linux-x86_64.tar.gz && \
+    cp -r cmake-3.28.0-linux-x86_64/bin/* /usr/local/bin/ && \
+    cp -r cmake-3.28.0-linux-x86_64/share/* /usr/local/share/ && \
+    rm -rf cmake-3.28.0-linux-x86_64*
+
+# Criar ambiente virtual
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Atualizar pip
+RUN pip install --upgrade pip setuptools wheel
+
+# Instalar dlib primeiro (compilação mais demorada)
+RUN pip install --no-cache-dir dlib==19.24.2
+
+# Copiar requirements
+COPY requirements.txt /tmp/
+
+# Instalar todas as outras dependências
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# ============================================
+# Stage de produção
+# ============================================
+FROM python:3.11-slim AS production
+
+# Instalar apenas runtime dependencies
+RUN apt-get update && apt-get install -y \
+    # OpenCV runtime
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libgomp1 \
+    libgfortran5 \
+    # Dlib/face_recognition runtime
+    libopenblas0 \
+    liblapack3 \
+    libx11-6 \
+    # Imagens
+    libjpeg-turbo-progs \
+    libpng16-16 \
+    libtiff6 \
+    # Ferramentas
+    curl \
+    wget \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copiar venv do builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Configurar diretório de trabalho
+WORKDIR /app
+
+# Criar diretórios necessários
+RUN mkdir -p logs uploads temp face_embeddings cache && \
+    chmod -R 777 logs uploads temp face_embeddings cache
+
+# Copiar código da aplicação
+COPY . /app/
+
+# Download do modelo YOLO
+RUN wget -q https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt || echo "YOLO will be downloaded at runtime"
+
+# Variáveis de ambiente
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    API_HOST=0.0.0.0 \
+    API_PORT=8001 \
+    NODE_ENV=production \
+    LOG_LEVEL=INFO
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8001/api/health || exit 1
+
+# Expor porta
+EXPOSE 8001
+
+# Comando de inicialização
+CMD ["python", "main.py"]
