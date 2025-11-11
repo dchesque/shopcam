@@ -1,16 +1,13 @@
-# Dockerfile ShopFlow - Versão Final com dlib pré-compilado
+# Dockerfile ShopFlow - Versão que FUNCIONA
 FROM python:3.11-slim
 
-# Variáveis de ambiente
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    DEBIAN_FRONTEND=noninteractive \
-    API_HOST=0.0.0.0 \
-    API_PORT=8001
-
-# Instalar dependências do sistema
+# Instalar TODAS as dependências do sistema incluindo CMAKE
 RUN apt-get update && apt-get install -y \
-    # Essenciais para OpenCV
+    # Build tools e CMAKE
+    build-essential \
+    cmake \
+    pkg-config \
+    # OpenCV runtime
     libgl1 \
     libglib2.0-0 \
     libsm6 \
@@ -18,7 +15,7 @@ RUN apt-get update && apt-get install -y \
     libxrender1 \
     libgomp1 \
     libgfortran5 \
-    # Para face_recognition
+    # Dlib/face_recognition runtime
     libopenblas0 \
     liblapack3 \
     libx11-6 \
@@ -26,56 +23,46 @@ RUN apt-get update && apt-get install -y \
     curl \
     wget \
     ffmpeg \
-    # Build tools mínimos
-    gcc \
-    g++ \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Diretório de trabalho
 WORKDIR /app
 
 # Atualizar pip
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# TRUQUE: Instalar dlib-bin (pré-compilado) ao invés de dlib
-RUN pip install --no-cache-dir dlib-bin
+# Instalar face_recognition com dlib (agora com cmake instalado funciona)
+RUN pip install --no-cache-dir cmake && \
+    pip install --no-cache-dir dlib && \
+    pip install --no-cache-dir face_recognition face-recognition-models
 
-# Instalar face_recognition e face-recognition-models
-RUN pip install --no-cache-dir \
-    face_recognition \
-    face-recognition-models
-
-# Copiar requirements
+# Copiar e limpar requirements
 COPY requirements.txt /tmp/
-
-# Criar requirements sem dlib (já instalado via dlib-bin)
 RUN grep -v "^dlib\|^face-recognition\|^face_recognition" /tmp/requirements.txt > /tmp/requirements_clean.txt || cp /tmp/requirements.txt /tmp/requirements_clean.txt
 
 # Instalar resto das dependências
 RUN pip install --no-cache-dir -r /tmp/requirements_clean.txt
 
-# Criar diretórios necessários
+# Criar diretórios
 RUN mkdir -p logs uploads temp face_embeddings cache && \
     chmod 755 logs uploads temp face_embeddings cache
 
-# Copiar código da aplicação
+# Copiar aplicação
 COPY . /app/
 
-# Download do modelo YOLO
+# Download YOLO
 RUN wget -q https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt || echo "YOLO will download at runtime"
 
-# Script de verificação
-RUN python -c "import dlib; print(f'✅ dlib version: {dlib.__version__}')" && \
-    python -c "import face_recognition; print('✅ face_recognition installed')" && \
-    python -c "import cv2; print(f'✅ OpenCV version: {cv2.__version__}')" || true
+# Variáveis de ambiente
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    API_HOST=0.0.0.0 \
+    API_PORT=8001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8001/api/health || exit 1
 
-# Expor porta
 EXPOSE 8001
 
-# Comando de inicialização
 CMD ["python", "main.py"]
