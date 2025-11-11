@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   Bell,
@@ -23,6 +24,7 @@ interface HeaderProps {
 }
 
 export function Header({ className }: HeaderProps) {
+  const router = useRouter()
   const { theme, setTheme } = useUIStore()
   const { user, signOut } = useAuth()
   const [showUserMenu, setShowUserMenu] = React.useState(false)
@@ -203,7 +205,23 @@ export function Header({ className }: HeaderProps) {
               </div>
               
               <div className="py-2">
-                <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800/50 hover:text-white transition-colors">
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false)
+                    router.push('/profile')
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800/50 hover:text-white transition-colors"
+                >
+                  <User className="w-4 h-4" />
+                  Meu Perfil
+                </button>
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false)
+                    router.push('/settings')
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800/50 hover:text-white transition-colors"
+                >
                   <Settings className="w-4 h-4" />
                   Configurações
                 </button>
