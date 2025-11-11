@@ -42,14 +42,23 @@ class Settings(BaseSettings):
         - STAGING: localhost + staging domain
         - PRODUCTION: domínio de produção apenas (HTTPS obrigatório)
 
+        Se ALLOWED_ORIGINS_CUSTOM estiver definido, usa essa lista (separada por vírgulas).
+
         Raises:
             ValueError: Se PRODUCTION_DOMAIN não estiver definido em produção
         """
+        # Se origens customizadas foram definidas, usar elas (para Easypanel, Vercel, etc)
+        custom_origins = os.getenv("ALLOWED_ORIGINS_CUSTOM", "")
+        if custom_origins:
+            origins_list = [origin.strip() for origin in custom_origins.split(",") if origin.strip()]
+            if origins_list:
+                return origins_list
+
         if self.ENVIRONMENT == "production":
             if not self.PRODUCTION_DOMAIN:
                 raise ValueError(
                     "🔒 ERRO DE SEGURANÇA: PRODUCTION_DOMAIN deve estar definido em produção! "
-                    "Configure a variável PRODUCTION_DOMAIN no .env ou secrets manager."
+                    "Configure a variável PRODUCTION_DOMAIN ou ALLOWED_ORIGINS_CUSTOM no .env ou secrets manager."
                 )
             # Em produção, permitir apenas o domínio configurado (com HTTPS)
             domain = self.PRODUCTION_DOMAIN.replace('http://', '').replace('https://', '')
