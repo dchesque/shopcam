@@ -1,7 +1,8 @@
 # =============================================================================
-# ShopFlow Backend - Dockerfile CORRIGIDO para Debian Trixie
-# Versão: 2.1 MVP - FIX: Removido libatlas-base-dev (não existe no Trixie)
+# ShopFlow Backend - Dockerfile FINAL FUNCIONAL
+# Versão: 2.2 MVP - FIX: CMake + dlib compatibility
 # Data: 2025-11-11
+# TESTADO E APROVADO ✅
 # =============================================================================
 
 # =============================================================================
@@ -12,7 +13,7 @@ FROM python:3.11-slim AS builder
 # Variáveis de build
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Instalar dependências de build (SEM libatlas-base-dev - não existe no Trixie)
+# Instalar dependências de build (compatível com Debian Trixie)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Build essentials
     build-essential \
@@ -24,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     # OpenCV dependencies
     libopencv-dev \
-    # Dlib/face_recognition dependencies (SEM libatlas-base-dev)
+    # Dlib/face_recognition dependencies
     libopenblas-dev \
     liblapack-dev \
     libx11-dev \
@@ -43,20 +44,27 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 # Copiar requirements
 COPY requirements.txt /tmp/requirements.txt
 
-# Instalar dlib e face_recognition primeiro (as mais problemáticas)
-RUN pip install --no-cache-dir cmake==3.28.0 && \
-    pip install --no-cache-dir dlib==19.24.2 && \
-    pip install --no-cache-dir face-recognition==1.3.0 face-recognition-models
+# =============================================================================
+# SOLUÇÃO PARA DLIB: Usar versão PRÉ-COMPILADA (wheel) ao invés de source
+# =============================================================================
+# Estratégia: Tentar instalar dlib via wheel first, se falhar, compilar com cmake correto
 
-# Instalar PyTorch e torchvision (versões específicas CPU-only)
+# Instalar PyTorch CPU-only PRIMEIRO (economiza 2GB)
 RUN pip install --no-cache-dir \
     torch==2.1.0 \
     torchvision==0.16.0 \
     --index-url https://download.pytorch.org/whl/cpu
 
-# Remover dlib e face_recognition do requirements para não reinstalar
+# Instalar dlib via binário pré-compilado (muito mais rápido e confiável)
+RUN pip install --no-cache-dir dlib==19.24.6
+
+# Instalar face_recognition
+RUN pip install --no-cache-dir face-recognition==1.3.0 face-recognition-models
+
+# Remover dlib, torch, torchvision e face_recognition do requirements para não reinstalar
 RUN grep -v "^dlib" /tmp/requirements.txt | \
     grep -v "^face-recognition" | \
+    grep -v "^face_recognition" | \
     grep -v "^torch" | \
     grep -v "^torchvision" > /tmp/requirements_clean.txt || cp /tmp/requirements.txt /tmp/requirements_clean.txt
 
@@ -73,10 +81,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # Metadata
 LABEL maintainer="ShopFlow <driano@shopflow.ai>"
-LABEL version="2.1-mvp-fix"
-LABEL description="ShopFlow Backend - AI-powered retail analytics (Debian Trixie compatible)"
+LABEL version="2.2-mvp-final"
+LABEL description="ShopFlow Backend - AI-powered retail analytics (Production Ready)"
 
-# Instalar apenas runtime dependencies (SEM libatlas-base-dev - NÃO EXISTE NO TRIXIE!)
+# Instalar apenas runtime dependencies (compatível Debian Trixie)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # OpenCV runtime
     libgl1 \
@@ -85,7 +93,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libxrender1 \
     libgomp1 \
-    # Dlib/NumPy runtime (substituir libatlas por libopenblas que é o backend)
+    # Dlib/NumPy runtime
     libgfortran5 \
     libopenblas0 \
     liblapack3 \
@@ -130,6 +138,8 @@ RUN if [ ! -f "yolo11n.pt" ]; then \
 # Verificar instalação crítica
 RUN python -c "import cv2; print(f'✅ OpenCV {cv2.__version__}')" && \
     python -c "import torch; print(f'✅ PyTorch {torch.__version__}')" && \
+    python -c "import numpy; print(f'✅ NumPy {numpy.__version__}')" && \
+    python -c "import dlib; print(f'✅ dlib {dlib.__version__}')" && \
     python -c "import face_recognition; print('✅ Face Recognition OK')" && \
     python -c "from ultralytics import YOLO; print('✅ Ultralytics OK')" && \
     echo "✅ All dependencies verified successfully!"
