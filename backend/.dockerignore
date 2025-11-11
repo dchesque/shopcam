@@ -1,9 +1,22 @@
-# Python
+# =============================================================================
+# ShopFlow Backend - .dockerignore
+# =============================================================================
+
+# Ambientes virtuais Python
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Distribuições Python
 build/
 develop-eggs/
 dist/
@@ -19,16 +32,40 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
-# Virtual environments
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+
+# Logs e dados temporários
+logs/
+*.log
+temp/
+*.tmp
+
+# Uploads e cache
+uploads/*
+!uploads/.gitkeep
+cache/
+*.cache
+
+# Face embeddings (não copiar, será gerado em runtime)
+face_embeddings/*
+!face_embeddings/.gitkeep
+
+# Arquivos de ambiente
 .env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+.env.*
+!.env.example
+!.env.production.template
+
+# Git
+.git/
+.gitignore
+.gitattributes
 
 # IDEs
 .vscode/
@@ -36,43 +73,41 @@ venv.bak/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
 
-# Logs
-*.log
-logs/
-
-# Cache
-.cache/
-.pytest_cache/
-
-# Model files (will be downloaded during build)
-*.pt
-*.onnx
-
-# Data directories (runtime volumes)
-uploads/
-face_embeddings/
-# models/ - NÃO IGNORAR - contém modelos Python necessários
-
-# Git
-.git/
-.gitignore
-
-# Documentation
+# Documentação
 docs/
 *.md
-README*
+!README.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.circleci/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
 
 # Tests
 tests/
-test_*
-*_test.py
+*.test.py
+
+# Notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Modelos (YOLO será baixado em runtime se necessário)
+# Descomente a linha abaixo se quiser forçar download em runtime
+# *.pt
+
+# Arquivos de configuração locais
+*.local
+*.dev
+*.backup
+
+# Node (se houver)
+node_modules/
+package-lock.json
+yarn.lock

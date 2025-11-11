@@ -1,95 +1,115 @@
-version: '3.8'
+# =============================================================================
+# ShopFlow Backend - Docker Compose
+# Versão: 2.0 MVP
+# =============================================================================
 
-# ============================================
-# SHOPFLOW MVP - DOCKER COMPOSE
-# ============================================
+version: '3.8'
 
 services:
   backend:
+    image: shopflow-backend:latest
+    container_name: shopflow-backend
     build:
       context: .
       dockerfile: Dockerfile
-
-    container_name: shopflow-backend
-
-    restart: unless-stopped
-
     ports:
       - "8001:8001"
-
     environment:
-      # Supabase (obrigatório)
+      # API Configuration
+      - API_HOST=0.0.0.0
+      - API_PORT=8001
+      - API_DEBUG=false
+      
+      # Supabase (OBRIGATÓRIO - definir em .env)
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
-
-      # Camera RTSP (obrigatório)
+      
+      # Camera RTSP (OBRIGATÓRIO para MVP)
       - CAMERA_RTSP_URL=${CAMERA_RTSP_URL}
-
-      # YOLO Config
-      - YOLO_MODEL=${YOLO_MODEL:-yolo11n.pt}
-      - YOLO_CONFIDENCE=${YOLO_CONFIDENCE:-0.5}
-      - YOLO_DEVICE=${YOLO_DEVICE:-cpu}
-
-      # Camera Processing
       - CAMERA_FPS_PROCESS=${CAMERA_FPS_PROCESS:-5}
       - CAMERA_RECONNECT_TIMEOUT=${CAMERA_RECONNECT_TIMEOUT:-10}
-
+      
+      # YOLO Configuration
+      - YOLO_MODEL=${YOLO_MODEL:-yolo11n.pt}
+      - YOLO_CONFIDENCE=${YOLO_CONFIDENCE:-0.5}
+      
+      # Face Recognition
+      - FACE_RECOGNITION_ENABLED=${FACE_RECOGNITION_ENABLED:-true}
+      
       # Group Detection
       - GROUP_MAX_DISTANCE=${GROUP_MAX_DISTANCE:-1.5}
       - GROUP_MIN_SIZE=${GROUP_MIN_SIZE:-2}
-
-      # Face Recognition
-      - FACE_RECOGNITION_ENABLED=${FACE_RECOGNITION_ENABLED:-true}
-      - FACE_TOLERANCE=${FACE_TOLERANCE:-0.6}
-
-      # Server
-      - PORT=${PORT:-8001}
-      - HOST=${HOST:-0.0.0.0}
+      
+      # CORS
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+      
+      # Logging
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-
+      
     volumes:
-      # Logs persistentes
+      # Persistir logs
       - ./logs:/app/logs
-
-      # Uploads de funcionários (opcional)
+      # Persistir uploads
       - ./uploads:/app/uploads
-
-      # Face embeddings (opcional)
+      # Persistir embeddings de funcionários
       - ./face_embeddings:/app/face_embeddings
-
-    networks:
-      - shopflow-network
-
-    # Healthcheck
+      # Persistir cache
+      - ./cache:/app/cache
+      
+    restart: unless-stopped
+    
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    
+    networks:
+      - shopflow-network
+    
+    # Limites de recursos (ajustar conforme VPS)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   shopflow-network:
     driver: bridge
 
-# ============================================
-# COMANDOS ÚTEIS
-# ============================================
-
-# Build e iniciar:
-#   docker-compose up -d --build
-
-# Ver logs:
-#   docker-compose logs -f backend
-
-# Parar:
-#   docker-compose down
-
-# Rebuild:
-#   docker-compose up -d --build --force-recreate
-
-# Acessar shell do container:
-#   docker-compose exec backend bash
-
-# Ver status:
-#   docker-compose ps
+# =============================================================================
+# INSTRUÇÕES DE USO
+# =============================================================================
+#
+# 1. Criar arquivo .env na raiz do projeto:
+#    cp .env.example .env
+#
+# 2. Editar .env com suas credenciais:
+#    SUPABASE_URL=https://seu-projeto.supabase.co
+#    SUPABASE_SERVICE_KEY=sua_service_key_aqui
+#    CAMERA_RTSP_URL=rtsp://user:pass@ip:554/stream
+#
+# 3. Build e iniciar:
+#    docker-compose up -d --build
+#
+# 4. Ver logs:
+#    docker-compose logs -f
+#
+# 5. Parar:
+#    docker-compose down
+#
+# 6. Limpar tudo (incluindo volumes):
+#    docker-compose down -v
+#
+# =============================================================================

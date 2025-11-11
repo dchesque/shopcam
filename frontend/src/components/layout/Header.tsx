@@ -2,20 +2,20 @@
 
 import * as React from 'react'
 import { motion } from 'framer-motion'
-import { 
-  Bell, 
-  Search, 
-  User, 
-  Settings, 
-  LogOut, 
-  Sun, 
+import {
+  Bell,
+  Search,
+  User,
+  Settings,
+  LogOut,
+  Sun,
   Moon,
   Camera,
   AlertTriangle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui-store'
-import { useAuthStore } from '@/stores/auth-store'
+import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 
 interface HeaderProps {
@@ -24,7 +24,7 @@ interface HeaderProps {
 
 export function Header({ className }: HeaderProps) {
   const { theme, setTheme } = useUIStore()
-  const { user, logout } = useAuthStore()
+  const { user, signOut } = useAuth()
   const [showUserMenu, setShowUserMenu] = React.useState(false)
   const [showNotifications, setShowNotifications] = React.useState(false)
 
@@ -175,7 +175,7 @@ export function Header({ className }: HeaderProps) {
               <User className="w-4 h-4 text-white" />
             </div>
             <span className="hidden md:block text-sm">
-              {user?.name || 'Admin'}
+              {user?.profile?.full_name || user?.email || 'Usuário'}
             </span>
           </Button>
 
@@ -196,8 +196,8 @@ export function Header({ className }: HeaderProps) {
                     <User className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-white">{user?.name || 'Admin'}</div>
-                    <div className="text-xs text-neutral-400">{user?.email || 'admin@shopflow.com'}</div>
+                    <div className="text-sm font-medium text-white">{user?.profile?.full_name || 'Usuário'}</div>
+                    <div className="text-xs text-neutral-400">{user?.email || ''}</div>
                   </div>
                 </div>
               </div>
@@ -207,8 +207,11 @@ export function Header({ className }: HeaderProps) {
                   <Settings className="w-4 h-4" />
                   Configurações
                 </button>
-                <button 
-                  onClick={logout}
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false)
+                    signOut()
+                  }}
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
                 >
                   <LogOut className="w-4 h-4" />

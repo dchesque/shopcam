@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { QueryProvider } from '@/components/providers/QueryProvider'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { DetectionProvider } from '@/contexts/DetectionContext'
+import { AuthProvider } from '@/contexts/AuthContext'
 import { Toaster } from 'sonner'
 
 const inter = Inter({ 
@@ -91,15 +92,17 @@ export default function RootLayout({
         <div className="relative">
           <QueryProvider>
             <ThemeProvider>
-              <DetectionProvider>
-                {children}
-                <Toaster
-                  position="top-right"
-                  theme="dark"
-                  richColors
-                  closeButton
-                />
-              </DetectionProvider>
+              <AuthProvider>
+                <DetectionProvider>
+                  {children}
+                  <Toaster
+                    position="top-right"
+                    theme="dark"
+                    richColors
+                    closeButton
+                  />
+                </DetectionProvider>
+              </AuthProvider>
             </ThemeProvider>
           </QueryProvider>
         </div>

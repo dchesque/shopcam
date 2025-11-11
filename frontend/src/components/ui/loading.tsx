@@ -3,7 +3,13 @@
 import { motion } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
 
-export function LoadingSpinner({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+export function LoadingSpinner({
+  size = 'md',
+  className = ''
+}: {
+  size?: 'sm' | 'md' | 'lg'
+  className?: string
+}) {
   const sizeClasses = {
     sm: 'w-4 h-4',
     md: 'w-6 h-6',
@@ -14,7 +20,7 @@ export function LoadingSpinner({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex items-center justify-center"
+      className={`flex items-center justify-center ${className}`}
     >
       <Loader2 className={`${sizeClasses[size]} animate-spin text-red-500`} />
     </motion.div>
@@ -31,3 +37,6 @@ export function PageLoading() {
     </div>
   )
 }
+
+// Export alias para compatibilidade
+export { LoadingSpinner as Loading }
