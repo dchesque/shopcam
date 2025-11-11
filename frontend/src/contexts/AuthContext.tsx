@@ -16,29 +16,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const supabase = createClient()
 
-  // Carregar perfil do usuário
-  const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
+  // Inicializar sessão
+  useEffect(() => {
+    // Carregar perfil do usuário
+    const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single()
 
-      if (error) {
+        if (error) {
+          console.error('Erro ao carregar perfil:', error)
+          return null
+        }
+
+        return data as UserProfile
+      } catch (error) {
         console.error('Erro ao carregar perfil:', error)
         return null
       }
-
-      return data as UserProfile
-    } catch (error) {
-      console.error('Erro ao carregar perfil:', error)
-      return null
     }
-  }
 
-  // Inicializar sessão
-  useEffect(() => {
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -100,8 +100,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        const profile = await loadUserProfile(data.user.id)
-        setUser({ ...data.user, profile: profile || undefined })
+        // Carregar perfil
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single()
+
+        setUser({ ...data.user, profile: profile as UserProfile || undefined })
         setSession(data.session)
       }
 
@@ -195,9 +201,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Recarregar perfil
-      const profile = await loadUserProfile(user.id)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
       if (profile) {
-        setUser({ ...user, profile })
+        setUser({ ...user, profile: profile as UserProfile })
       }
 
       return { error: null }
