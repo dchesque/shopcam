@@ -208,69 +208,8 @@ app.include_router(analytics_router)
 app.include_router(employees_router)
 
 # ============================================================================
-# MVP: MJPEG STREAM ENDPOINT (substituindo bridge)
+# CAMERA STATS ENDPOINT
 # ============================================================================
-
-async def generate_mjpeg_stream():
-    """
-    Gerador de stream MJPEG para visualização da câmera ao vivo.
-    Retorna frames anotados com bounding boxes e estatísticas.
-    """
-    logger.info("Cliente conectado ao stream MJPEG")
-
-    try:
-        while True:
-            if not rtsp_processor or not rtsp_processor.is_running:
-                # Se processor não está rodando, retornar frame placeholder
-                logger.warning("RTSP processor não disponível")
-                await asyncio.sleep(0.5)
-                continue
-
-            # Obter último frame processado
-            frame_jpeg = rtsp_processor.get_latest_frame()
-
-            if frame_jpeg is None:
-                # Sem frame disponível ainda
-                await asyncio.sleep(0.1)
-                continue
-
-            # Retornar frame no formato MJPEG
-            yield (
-                b'--frame\r\n'
-                b'Content-Type: image/jpeg\r\n\r\n' + frame_jpeg + b'\r\n'
-            )
-
-            # Controlar FPS do stream (10 FPS para web)
-            await asyncio.sleep(0.1)  # ~10 FPS
-
-    except Exception as e:
-        logger.error(f"Erro no stream MJPEG: {e}")
-    finally:
-        logger.info("Cliente desconectado do stream MJPEG")
-
-
-@app.get("/api/camera/stream")
-async def camera_stream():
-    """Endpoint de stream MJPEG da câmera ao vivo"""
-
-    async def generate_with_headers():
-        async for chunk in generate_mjpeg_stream():
-            yield chunk
-
-    return StreamingResponse(
-        generate_with_headers(),
-        media_type="multipart/x-mixed-replace; boundary=frame",
-        headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-            "Access-Control-Expose-Headers": "*",
-        }
-    )
-
 
 @app.get("/api/camera/stats")
 async def camera_stats():
