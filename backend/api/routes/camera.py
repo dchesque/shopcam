@@ -70,6 +70,60 @@ async def camera_status():
         }
 
 # ============================================================================
+# STREAM ENDPOINT (deve vir ANTES de rotas parametrizadas)
+# ============================================================================
+
+@router.get("/stream")
+async def camera_stream():
+    """🎥 Endpoint de stream MJPEG da câmera ao vivo"""
+    from fastapi.responses import StreamingResponse
+
+    # Importar a função de stream do main
+    # Como está no main.py, vamos usar o processador RTSP diretamente
+    from core.app_state import get_rtsp_processor
+
+    async def generate_with_headers():
+        """Gera frames do stream MJPEG"""
+        processor = get_rtsp_processor()
+        if processor is None:
+            logger.error("RTSP Processor não inicializado")
+            yield b''
+            return
+
+        try:
+            while True:
+                # get_latest_frame() já retorna bytes JPEG
+                frame_bytes = processor.get_latest_frame()
+                if frame_bytes is None:
+                    await asyncio.sleep(0.1)
+                    continue
+
+                # MJPEG format
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+                await asyncio.sleep(0.033)  # ~30 FPS
+
+        except asyncio.CancelledError:
+            logger.info("Stream cancelado pelo cliente")
+        except Exception as e:
+            logger.error(f"Erro no stream: {e}")
+
+    return StreamingResponse(
+        generate_with_headers(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Expose-Headers": "*",
+        }
+    )
+
+# ============================================================================
 # CRUD ENDPOINTS PARA GERENCIAMENTO DE CÂMERAS
 # ============================================================================
 

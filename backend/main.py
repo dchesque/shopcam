@@ -97,7 +97,7 @@ async def lifespan(app: FastAPI):
         await smart_engine.initialize()
 
         # Definir no estado global
-        from core.app_state import set_smart_engine
+        from core.app_state import set_smart_engine, set_rtsp_processor
         set_smart_engine(smart_engine)
 
         logger.success("✅ Smart Analytics Engine inicializado")
@@ -121,6 +121,10 @@ async def lifespan(app: FastAPI):
 
         # Iniciar processamento contínuo
         await rtsp_processor.start()
+
+        # Definir no estado global
+        set_rtsp_processor(rtsp_processor)
+
         logger.success("✅ RTSP Processor iniciado - processamento ao vivo ativo!")
 
         logger.success("🎯 Backend MVP iniciado com sucesso! Câmera conectada via RTSP.")
