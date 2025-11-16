@@ -1,23 +1,23 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Output padrão (não usar standalone com npm start)
-  // output: 'standalone',
-  
+  // Output standalone para Docker/Easypanel
+  output: 'standalone',
+
   // React strict mode
   reactStrictMode: true,
-  
+
   // Suppress hydration warnings for development
   onDemandEntries: {
     maxInactiveAge: 25 * 1000,
     pagesBufferLength: 2,
   },
-  
+
   // Compressão
   compress: true,
-  
+
   // Configurações de imagem
   images: {
-    domains: ['localhost', 'orzzycayjzgcuvcsrxsi.supabase.co'],
+    domains: ['localhost', 'orzzycayjzgcuvcsrxsi.supabase.co', 'jarxgaagajceqllgjaqj.supabase.co'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -26,12 +26,12 @@ const nextConfig = {
       },
     ],
   },
-  
-  // Variáveis de ambiente
+
+  // Variáveis de ambiente (hardcoded para Easypanel)
   env: {
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://shopflow-jcplussize-shopcam-backend1.hshars.easypanel.host',
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jarxgaagajceqllgjaqj.supabase.co',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphcnhnYWFnYWpjZXFsbGdqYXFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI3MTc1MTYsImV4cCI6MjA3ODI5MzUxNn0.y-k_fG_E-0HyTMz3G3OZPsiPREPu77ZA6rmek6TbXZM',
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
   },
   
