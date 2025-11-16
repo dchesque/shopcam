@@ -243,9 +243,16 @@ class RTSPFrameProcessor:
         # Converter para formato Detection do group detector
         detections = []
         for i, det in enumerate(yolo_detections):
+            # Extrair coordenadas do formato YOLO11 (com validação)
+            x1 = int(det.get('x1', 0))
+            y1 = int(det.get('y1', 0))
+            x2 = int(det.get('x2', 0))
+            y2 = int(det.get('y2', 0))
+            confidence = float(det.get('confidence', 0))
+
             detection = Detection(
-                bbox=(det['x1'], det['y1'], det['x2'], det['y2']),
-                confidence=det['confidence'],
+                bbox=(x1, y1, x2, y2),
+                confidence=confidence,
                 person_id=f"person_{i}",
                 is_employee=False
             )

@@ -72,6 +72,10 @@ async def lifespan(app: FastAPI):
         await supabase_manager.initialize()
         logger.success("✅ Supabase conectado")
 
+        # Definir no estado global
+        from core.app_state import set_supabase_manager
+        set_supabase_manager(supabase_manager)
+
         # Inicializar detector YOLO
         detector = YOLOPersonDetector(
             model_path=settings.YOLO_MODEL,

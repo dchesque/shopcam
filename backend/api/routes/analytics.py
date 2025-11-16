@@ -15,7 +15,7 @@ from core.ai.privacy_config import privacy_manager
 from core.database import SupabaseManager
 from core.config import settings
 from models.api_models import ApiResponse
-from core.app_state import get_smart_engine as get_global_engine
+from core.app_state import get_smart_engine as get_global_engine, get_supabase_manager
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -42,11 +42,20 @@ async def get_mvp_metrics():
     Retorna dados do último evento processado da câmera
     """
     try:
-        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
-        await db.initialize()
+        # Usar instância global
+        db = get_supabase_manager()
+        if not db:
+            logger.error("Supabase Manager not initialized")
+            return {
+                "total_people": 0,
+                "potential_customers": 0,
+                "employees_count": 0,
+                "groups_count": 0,
+                "timestamp": datetime.now().isoformat()
+            }
 
         # Buscar último evento da câmera
-        response = await db.supabase.table("camera_events") \
+        response = await db.client.table("camera_events") \
             .select("*") \
             .order("timestamp", desc=True) \
             .limit(1) \
@@ -96,37 +105,52 @@ async def get_mvp_history(
     Retorna dados agrupados por hora para o gráfico temporal
     """
     try:
-        db = SupabaseManager(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
-        await db.initialize()
+        # Usar instância global
+        db = get_supabase_manager()
+        if not db:
+            logger.error("Supabase Manager not initialized")
+            return {
+                "data": [],  # ✅ Array vazio ao invés de None
+                "status": "error",
+                "message": "Database not initialized"
+            }
 
         # Calcular timestamp de início
         start_time = datetime.now() - timedelta(hours=hours)
 
         # Buscar eventos no período
-        response = await db.supabase.table("camera_events") \
+        response = await db.client.table("camera_events") \
             .select("timestamp, total_people") \
             .gte("timestamp", start_time.isoformat()) \
             .order("timestamp", desc=False) \
             .execute()
 
-        if response.data:
-            # Retornar dados formatados
-            history_data = []
+        # Garantir sempre retornar array
+        history_data = []
+
+        if response.data and len(response.data) > 0:
             for event in response.data:
                 history_data.append({
                     "timestamp": event.get("timestamp"),
                     "total_people": event.get("total_people", 0)
                 })
-
-            return {"data": history_data, "status": "success"}
         else:
-            # Gerar dados dummy se não houver eventos
-            return {"data": generate_dummy_history(hours), "status": "success"}
+            # Gerar dados dummy se vazio
+            history_data = generate_dummy_history(hours)
+
+        return {
+            "data": history_data,  # ✅ Sempre array, nunca None
+            "status": "success"
+        }
 
     except Exception as e:
         logger.error(f"Erro ao obter histórico MVP: {e}")
-        # Retornar dados dummy em caso de erro
-        return {"data": generate_dummy_history(hours), "status": "success"}
+        # Retornar array vazio em caso de erro
+        return {
+            "data": [],  # ✅ Array vazio ao invés de None
+            "status": "error",
+            "message": str(e)
+        }
 
 
 def generate_dummy_history(hours: int) -> List[Dict[str, Any]]:
