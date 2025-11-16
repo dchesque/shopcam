@@ -247,18 +247,17 @@ async def generate_mjpeg_stream():
 
 @app.get("/api/camera/stream")
 async def camera_stream():
-    """
-    Endpoint de stream MJPEG da câmera ao vivo.
-
-    Returns:
-        StreamingResponse: Stream de vídeo MJPEG com bounding boxes e métricas
-    """
+    """Endpoint de stream MJPEG da câmera ao vivo"""
     return StreamingResponse(
         generate_mjpeg_stream(),
         media_type="multipart/x-mixed-replace; boundary=frame",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
             "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
         }
     )
 
